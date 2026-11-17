@@ -1,0 +1,346 @@
+{
+  "entities": {
+    "RoleAssignment": {
+      "title": "RoleAssignment",
+      "description": "Maps authenticated Firebase UID to foundation role and staff profile.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "role": { "type": "string", "enum": ["Admin", "Manager", "Supervisor", "Registrar", "Staff"] },
+        "staffId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "staffId", "createdAt", "updatedAt"]
+    },
+    "StaffDirectory": {
+      "title": "StaffDirectory",
+      "description": "Operational non-PII staff profile for duty assignment and approval workflows.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "maxLength": 64 },
+        "employeeCode": { "type": "string", "maxLength": 32 },
+        "fullName": { "type": "string", "maxLength": 150 },
+        "department": { "type": "string", "maxLength": 120 },
+        "position": { "type": "string", "maxLength": 150 },
+        "startDate": { "type": "string", "maxLength": 20 },
+        "role": { "type": "string", "enum": ["Admin", "Manager", "Supervisor", "Registrar", "Staff"] },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] },
+        "authUid": { "type": "string", "maxLength": 128 },
+        "signatureDataUrl": { "type": "string", "maxLength": 200000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "employeeCode", "fullName", "department", "position", "startDate", "role", "status", "createdAt", "updatedAt"]
+    },
+    "StaffPrivate": {
+      "title": "StaffPrivate",
+      "description": "Isolated PII and PIN hash for a staff member, readable only by owner or Admin.",
+      "type": "object",
+      "properties": {
+        "staffId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authUid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 200 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "pinHash": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["staffId", "email", "phone", "pinHash", "updatedAt"]
+    },
+    "IncomingDocument": {
+      "title": "IncomingDocument",
+      "description": "Incoming official document registry record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "maxLength": 64 },
+        "docNumber": { "type": "string", "maxLength": 64 },
+        "receivedDate": { "type": "string", "maxLength": 20 },
+        "fromOrg": { "type": "string", "maxLength": 200 },
+        "toOrg": { "type": "string", "maxLength": 200 },
+        "subject": { "type": "string", "maxLength": 500 },
+        "receiverName": { "type": "string", "maxLength": 150 },
+        "attachmentName": { "type": "string", "maxLength": 255 },
+        "attachmentData": { "type": "string", "maxLength": 500000 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "docNumber", "receivedDate", "fromOrg", "toOrg", "subject", "receiverName", "createdBy", "createdAt", "updatedAt"]
+    },
+    "OutgoingDocument": {
+      "title": "OutgoingDocument",
+      "description": "Outgoing official document registry record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "maxLength": 64 },
+        "docNumber": { "type": "string", "maxLength": 64 },
+        "issuedDate": { "type": "string", "maxLength": 20 },
+        "fromOrg": { "type": "string", "maxLength": 200 },
+        "toOrg": { "type": "string", "maxLength": 200 },
+        "subject": { "type": "string", "maxLength": 500 },
+        "issuerName": { "type": "string", "maxLength": 150 },
+        "attachmentName": { "type": "string", "maxLength": 255 },
+        "attachmentData": { "type": "string", "maxLength": 500000 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "docNumber", "issuedDate", "fromOrg", "toOrg", "subject", "issuerName", "createdBy", "createdAt", "updatedAt"]
+    },
+    "LeaveRequest": {
+      "title": "LeaveRequest",
+      "description": "Online leave and special shift-swap/day-off request with two-tier approval and SHA-256 signatures.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "maxLength": 64 },
+        "docNumber": { "type": "string", "maxLength": 32 },
+        "requestCategory": { "type": "string", "enum": ["leave", "special"] },
+        "leaveType": { "type": "string", "maxLength": 80 },
+        "date": { "type": "string", "maxLength": 20 },
+        "location": { "type": "string", "maxLength": 200 },
+        "subject": { "type": "string", "maxLength": 300 },
+        "applicantStaffId": { "type": "string", "maxLength": 128 },
+        "applicantName": { "type": "string", "maxLength": 150 },
+        "position": { "type": "string", "maxLength": 150 },
+        "reason": { "type": "string", "maxLength": 1000 },
+        "startDate": { "type": "string", "maxLength": 20 },
+        "endDate": { "type": "string", "maxLength": 20 },
+        "totalDays": { "type": "number" },
+        "medicalCertName": { "type": "string", "maxLength": 255 },
+        "medicalCertData": { "type": "string", "maxLength": 500000 },
+        "status": { "type": "string", "enum": ["pending_supervisor", "pending_manager", "approved", "rejected"] },
+        "currentStep": { "type": "number" },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "docNumber", "requestCategory", "leaveType", "date", "location", "subject", "applicantStaffId", "applicantName", "position", "reason", "startDate", "endDate", "totalDays", "status", "currentStep", "createdBy", "createdAt", "updatedAt"]
+    },
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Medical or kitchen equipment inventory item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "maxLength": 64 },
+        "code": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 200 },
+        "category": { "type": "string", "maxLength": 100 },
+        "unit": { "type": "string", "maxLength": 40 },
+        "totalStock": { "type": "number" },
+        "availableStock": { "type": "number" },
+        "condition": { "type": "string", "maxLength": 100 },
+        "location": { "type": "string", "maxLength": 150 },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "code", "name", "category", "unit", "totalStock", "availableStock", "condition", "createdBy", "createdAt", "updatedAt"]
+    },
+    "EquipmentLoan": {
+      "title": "EquipmentLoan",
+      "description": "Borrow and return transaction for medical or kitchen equipment.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "maxLength": 64 },
+        "docNumber": { "type": "string", "maxLength": 64 },
+        "borrowerName": { "type": "string", "maxLength": 150 },
+        "borrowerPhone": { "type": "string", "maxLength": 40 },
+        "purpose": { "type": "string", "maxLength": 500 },
+        "borrowDate": { "type": "string", "maxLength": 20 },
+        "dueDate": { "type": "string", "maxLength": 20 },
+        "returnDate": { "type": "string", "maxLength": 20 },
+        "status": { "type": "string", "enum": ["borrowed", "returned"] },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "docNumber", "borrowerName", "purpose", "borrowDate", "dueDate", "status", "createdBy", "createdAt", "updatedAt"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Ambulance and rescue fleet vehicle.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "maxLength": 64 },
+        "callsign": { "type": "string", "maxLength": 64 },
+        "plateNumber": { "type": "string", "maxLength": 40 },
+        "vehicleType": { "type": "string", "maxLength": 64 },
+        "station": { "type": "string", "maxLength": 150 },
+        "driverName": { "type": "string", "maxLength": 150 },
+        "crewNames": { "type": "string", "maxLength": 300 },
+        "status": { "type": "string", "enum": ["ready", "on_mission", "maintenance"] },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "callsign", "plateNumber", "vehicleType", "station", "driverName", "status", "createdBy", "createdAt", "updatedAt"]
+    },
+    "VehicleInspection": {
+      "title": "VehicleInspection",
+      "description": "12-point vehicle readiness inspection record with inspector e-signature.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "maxLength": 64 },
+        "vehicleId": { "type": "string", "maxLength": 128 },
+        "callsign": { "type": "string", "maxLength": 64 },
+        "plateNumber": { "type": "string", "maxLength": 40 },
+        "inspectionDate": { "type": "string", "maxLength": 20 },
+        "inspectorName": { "type": "string", "maxLength": 150 },
+        "overallStatus": { "type": "string", "enum": ["pass", "needs_repair"] },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "vehicleId", "callsign", "plateNumber", "inspectionDate", "inspectorName", "overallStatus", "createdBy", "createdAt"]
+    },
+    "RepairRequest": {
+      "title": "RepairRequest",
+      "description": "Maintenance and repair ticket across vehicles, medical, office, and building categories.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "maxLength": 64 },
+        "docNumber": { "type": "string", "maxLength": 64 },
+        "category": { "type": "string", "enum": ["vehicle", "medical", "office", "building"] },
+        "subCategory": { "type": "string", "maxLength": 100 },
+        "assetName": { "type": "string", "maxLength": 200 },
+        "locationOrPlate": { "type": "string", "maxLength": 150 },
+        "issueDescription": { "type": "string", "maxLength": 1000 },
+        "estimatedCost": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "in_progress", "completed", "cancelled"] },
+        "reporterName": { "type": "string", "maxLength": 150 },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "docNumber", "category", "assetName", "issueDescription", "estimatedCost", "status", "reporterName", "createdBy", "createdAt", "updatedAt"]
+    },
+    "PavilionRequest": {
+      "title": "PavilionRequest",
+      "description": "Funeral pavilion permit and ceremony schedule request.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "maxLength": 64 },
+        "docNumber": { "type": "string", "maxLength": 64 },
+        "pavilionName": { "type": "string", "maxLength": 100 },
+        "applicantName": { "type": "string", "maxLength": 150 },
+        "relationship": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "checkInDate": { "type": "string", "maxLength": 20 },
+        "checkOutDate": { "type": "string", "maxLength": 20 },
+        "cremationDate": { "type": "string", "maxLength": 20 },
+        "deceasedName": { "type": "string", "maxLength": 150 },
+        "status": { "type": "string", "enum": ["pending", "verified", "approved", "rejected"] },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "docNumber", "pavilionName", "applicantName", "relationship", "phone", "checkInDate", "checkOutDate", "deceasedName", "status", "createdBy", "createdAt", "updatedAt"]
+    },
+    "NotificationItem": {
+      "title": "NotificationItem",
+      "description": "Real-time notification event for document registry, approvals, and loans.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "maxLength": 64 },
+        "title": { "type": "string", "maxLength": 200 },
+        "message": { "type": "string", "maxLength": 500 },
+        "category": { "type": "string", "enum": ["incoming", "outgoing", "leave", "approval", "loan", "pavilion", "repair"] },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "title", "message", "category", "createdBy", "createdAt"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Foundation-wide configuration for custom vehicle types and leave approval routes.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "maxLength": 64 },
+        "updatedBy": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "updatedBy", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/roles/{uid}": {
+      "schema": { "$ref": "#/entities/RoleAssignment" },
+      "description": "Trusted role assignments per Firebase UID."
+    },
+    "/staff_directory/{staffId}": {
+      "schema": { "$ref": "#/entities/StaffDirectory" },
+      "description": "Operational foundation staff directory (non-PII)."
+    },
+    "/staff_private/{staffId}": {
+      "schema": { "$ref": "#/entities/StaffPrivate" },
+      "description": "Isolated staff PII (email, phone) and PIN hash."
+    },
+    "/incoming_docs/{docId}": {
+      "schema": { "$ref": "#/entities/IncomingDocument" },
+      "description": "Incoming official documents registry."
+    },
+    "/outgoing_docs/{docId}": {
+      "schema": { "$ref": "#/entities/OutgoingDocument" },
+      "description": "Outgoing official documents registry."
+    },
+    "/leave_requests/{reqId}": {
+      "schema": { "$ref": "#/entities/LeaveRequest" },
+      "description": "Leave and special shift/day-off requests."
+    },
+    "/medical_items/{itemId}": {
+      "schema": { "$ref": "#/entities/InventoryItem" },
+      "description": "Medical equipment and supplies catalog."
+    },
+    "/medical_loans/{loanId}": {
+      "schema": { "$ref": "#/entities/EquipmentLoan" },
+      "description": "Medical equipment borrow and return records."
+    },
+    "/kitchen_items/{itemId}": {
+      "schema": { "$ref": "#/entities/InventoryItem" },
+      "description": "Kitchen and catering equipment catalog."
+    },
+    "/kitchen_loans/{loanId}": {
+      "schema": { "$ref": "#/entities/EquipmentLoan" },
+      "description": "Kitchen equipment borrow and return records."
+    },
+    "/vehicles/{vehicleId}": {
+      "schema": { "$ref": "#/entities/Vehicle" },
+      "description": "Ambulance and rescue fleet vehicles."
+    },
+    "/vehicle_inspections/{inspId}": {
+      "schema": { "$ref": "#/entities/VehicleInspection" },
+      "description": "12-point vehicle readiness inspections."
+    },
+    "/repairs/{repairId}": {
+      "schema": { "$ref": "#/entities/RepairRequest" },
+      "description": "Repair and maintenance requests."
+    },
+    "/pavilion_requests/{reqId}": {
+      "schema": { "$ref": "#/entities/PavilionRequest" },
+      "description": "Funeral pavilion permit requests."
+    },
+    "/notifications/{notifId}": {
+      "schema": { "$ref": "#/entities/NotificationItem" },
+      "description": "Real-time notification stream."
+    },
+    "/app_settings/{settingId}": {
+      "schema": { "$ref": "#/entities/AppSettings" },
+      "description": "Foundation-wide routing and vehicle type configuration."
+    }
+  }
+}

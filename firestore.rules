@@ -1,0 +1,503 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Helpers ---
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrapAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'emsrkl1669@gmail.com';
+    }
+
+    function hasRole(allowedRoles) {
+      return isVerifiedUser()
+        && exists(/databases/$(database)/documents/roles/$(request.auth.uid))
+        && get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.role in allowedRoles;
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || hasRole(['Admin']);
+    }
+
+    function isManager() {
+      return isAdmin() || hasRole(['Manager']);
+    }
+
+    function isSupervisor() {
+      return isManager() || hasRole(['Supervisor']);
+    }
+
+    function isRegistrar() {
+      return isAdmin() || isManager() || hasRole(['Registrar']);
+    }
+
+    function isOrgDoc(data) {
+      return data.orgId == 'ruamkuson_samutprakan';
+    }
+
+    function isNonEmptyStr(val, maxLen) {
+      return val is string && val.size() > 0 && val.size() <= maxLen;
+    }
+
+    function isOptStr(data, field, maxLen) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isImmutableOrgMeta() {
+      return incoming().id == existing().id
+        && incoming().orgId == existing().orgId
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+    }
+
+    // --- Validation Blueprints ---
+    function isValidRoleAssignment(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'staffId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'role', 'staffId', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && isNonEmptyStr(data.email, 200)
+        && data.role in ['Admin', 'Manager', 'Supervisor', 'Registrar', 'Staff']
+        && isValidId(data.staffId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidStaffDirectory(data) {
+      return data.keys().hasAll(['id', 'orgId', 'employeeCode', 'fullName', 'department', 'position', 'startDate', 'role', 'status', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'employeeCode', 'fullName', 'department', 'position', 'startDate', 'role', 'status', 'authUid', 'signatureDataUrl', 'createdBy', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.orgId == 'ruamkuson_samutprakan'
+        && isNonEmptyStr(data.employeeCode, 32)
+        && isNonEmptyStr(data.fullName, 150)
+        && isNonEmptyStr(data.department, 120)
+        && isNonEmptyStr(data.position, 150)
+        && isNonEmptyStr(data.startDate, 20)
+        && data.role in ['Admin', 'Manager', 'Supervisor', 'Registrar', 'Staff']
+        && data.status in ['Active', 'Inactive']
+        && isOptStr(data, 'authUid', 128)
+        && isOptStr(data, 'signatureDataUrl', 200000)
+        && isNonEmptyStr(data.createdBy, 128)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidStaffPrivate(data) {
+      return data.keys().hasAll(['staffId', 'email', 'phone', 'pinHash', 'updatedAt'])
+        && data.keys().hasOnly(['staffId', 'authUid', 'email', 'phone', 'pinHash', 'updatedAt'])
+        && isValidId(data.staffId)
+        && isOptStr(data, 'authUid', 128)
+        && isOptStr(data, 'email', 200)
+        && isOptStr(data, 'phone', 40)
+        && isNonEmptyStr(data.pinHash, 128)
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidRegistryDoc(data) {
+      return data.keys().hasAll(['id', 'orgId', 'docNumber', 'docDate', 'fromOrg', 'toOrg', 'subject', 'handlerName', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'docNumber', 'docDate', 'fromOrg', 'toOrg', 'subject', 'handlerName', 'attachmentName', 'attachmentData', 'notes', 'createdBy', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.orgId == 'ruamkuson_samutprakan'
+        && isNonEmptyStr(data.docNumber, 64)
+        && isNonEmptyStr(data.docDate, 20)
+        && isNonEmptyStr(data.fromOrg, 200)
+        && isNonEmptyStr(data.toOrg, 200)
+        && isNonEmptyStr(data.subject, 500)
+        && isNonEmptyStr(data.handlerName, 150)
+        && isOptStr(data, 'attachmentName', 255)
+        && isOptStr(data, 'attachmentData', 500000)
+        && isOptStr(data, 'notes', 1000)
+        && isNonEmptyStr(data.createdBy, 128)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidLeaveRequest(data) {
+      return data.keys().hasAll(['id', 'orgId', 'docNumber', 'requestCategory', 'leaveType', 'date', 'location', 'subject', 'applicantStaffId', 'applicantName', 'position', 'reason', 'startDate', 'endDate', 'totalDays', 'status', 'currentStep', 'approvalRoute', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'docNumber', 'requestCategory', 'leaveType', 'date', 'location', 'subject', 'applicantStaffId', 'applicantName', 'position', 'reason', 'startDate', 'endDate', 'totalDays', 'medicalCertName', 'medicalCertData', 'status', 'currentStep', 'approvalRoute', 'applicantSignature', 'supervisorSignature', 'managerSignature', 'rejectionReason', 'createdBy', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.orgId == 'ruamkuson_samutprakan'
+        && isNonEmptyStr(data.docNumber, 32)
+        && data.requestCategory in ['leave', 'special']
+        && isNonEmptyStr(data.leaveType, 80)
+        && isNonEmptyStr(data.date, 20)
+        && isNonEmptyStr(data.location, 200)
+        && isNonEmptyStr(data.subject, 300)
+        && isNonEmptyStr(data.applicantStaffId, 128)
+        && isNonEmptyStr(data.applicantName, 150)
+        && isNonEmptyStr(data.position, 150)
+        && isNonEmptyStr(data.reason, 1000)
+        && isNonEmptyStr(data.startDate, 20)
+        && isNonEmptyStr(data.endDate, 20)
+        && data.totalDays is number && data.totalDays >= 0 && data.totalDays <= 366
+        && isOptStr(data, 'medicalCertName', 255)
+        && isOptStr(data, 'medicalCertData', 500000)
+        && data.status in ['pending_supervisor', 'pending_manager', 'approved', 'rejected']
+        && data.currentStep is number && data.currentStep >= 1 && data.currentStep <= 5
+        && data.approvalRoute is list && data.approvalRoute.size() > 0 && data.approvalRoute.size() <= 5 && data.approvalRoute[0] is string
+        && isOptStr(data, 'rejectionReason', 500)
+        && (!('applicantSignature' in data) || data.applicantSignature is map)
+        && (!('supervisorSignature' in data) || data.supervisorSignature is map)
+        && (!('managerSignature' in data) || data.managerSignature is map)
+        && isNonEmptyStr(data.createdBy, 128)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidInventoryItem(data) {
+      return data.keys().hasAll(['id', 'orgId', 'code', 'name', 'category', 'unit', 'totalStock', 'availableStock', 'condition', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'code', 'name', 'category', 'unit', 'totalStock', 'availableStock', 'condition', 'location', 'createdBy', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.orgId == 'ruamkuson_samutprakan'
+        && isNonEmptyStr(data.code, 64)
+        && isNonEmptyStr(data.name, 200)
+        && isNonEmptyStr(data.category, 100)
+        && isNonEmptyStr(data.unit, 40)
+        && data.totalStock is number && data.totalStock >= 0 && data.totalStock <= 100000
+        && data.availableStock is number && data.availableStock >= 0 && data.availableStock <= data.totalStock
+        && isNonEmptyStr(data.condition, 100)
+        && isOptStr(data, 'location', 150)
+        && isNonEmptyStr(data.createdBy, 128)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidEquipmentLoan(data) {
+      return data.keys().hasAll(['id', 'orgId', 'docNumber', 'borrowerName', 'purpose', 'borrowDate', 'dueDate', 'items', 'status', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'docNumber', 'borrowerName', 'borrowerPhone', 'purpose', 'borrowDate', 'dueDate', 'returnDate', 'items', 'status', 'borrowerSignature', 'staffSignature', 'returnNotes', 'createdBy', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.orgId == 'ruamkuson_samutprakan'
+        && isNonEmptyStr(data.docNumber, 64)
+        && isNonEmptyStr(data.borrowerName, 150)
+        && isOptStr(data, 'borrowerPhone', 40)
+        && isNonEmptyStr(data.purpose, 500)
+        && isNonEmptyStr(data.borrowDate, 20)
+        && isNonEmptyStr(data.dueDate, 20)
+        && isOptStr(data, 'returnDate', 20)
+        && data.items is list && data.items.size() > 0 && data.items.size() <= 30 && data.items[0] is map
+        && data.status in ['borrowed', 'returned']
+        && (!('borrowerSignature' in data) || data.borrowerSignature is map)
+        && (!('staffSignature' in data) || data.staffSignature is map)
+        && isOptStr(data, 'returnNotes', 500)
+        && isNonEmptyStr(data.createdBy, 128)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidVehicle(data) {
+      return data.keys().hasAll(['id', 'orgId', 'callsign', 'plateNumber', 'vehicleType', 'station', 'driverName', 'status', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'callsign', 'plateNumber', 'vehicleType', 'station', 'driverName', 'crewNames', 'status', 'createdBy', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.orgId == 'ruamkuson_samutprakan'
+        && isNonEmptyStr(data.callsign, 64)
+        && isNonEmptyStr(data.plateNumber, 40)
+        && isNonEmptyStr(data.vehicleType, 64)
+        && isNonEmptyStr(data.station, 150)
+        && isNonEmptyStr(data.driverName, 150)
+        && isOptStr(data, 'crewNames', 300)
+        && data.status in ['ready', 'on_mission', 'maintenance']
+        && isNonEmptyStr(data.createdBy, 128)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidVehicleInspection(data) {
+      return data.keys().hasAll(['id', 'orgId', 'vehicleId', 'callsign', 'plateNumber', 'inspectionDate', 'inspectorName', 'checklist', 'overallStatus', 'createdBy', 'createdAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'vehicleId', 'callsign', 'plateNumber', 'inspectionDate', 'inspectorName', 'checklist', 'overallStatus', 'notes', 'inspectorSignature', 'createdBy', 'createdAt'])
+        && isValidId(data.id)
+        && data.orgId == 'ruamkuson_samutprakan'
+        && isValidId(data.vehicleId)
+        && isNonEmptyStr(data.callsign, 64)
+        && isNonEmptyStr(data.plateNumber, 40)
+        && isNonEmptyStr(data.inspectionDate, 20)
+        && isNonEmptyStr(data.inspectorName, 150)
+        && data.checklist is list && data.checklist.size() == 12 && data.checklist[0] is map
+        && data.overallStatus in ['pass', 'needs_repair']
+        && isOptStr(data, 'notes', 1000)
+        && (!('inspectorSignature' in data) || data.inspectorSignature is map)
+        && isNonEmptyStr(data.createdBy, 128)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidRepairRequest(data) {
+      return data.keys().hasAll(['id', 'orgId', 'docNumber', 'category', 'subCategory', 'assetName', 'issueDescription', 'estimatedCost', 'status', 'reporterName', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'docNumber', 'category', 'subCategory', 'assetName', 'locationOrPlate', 'issueDescription', 'estimatedCost', 'status', 'reporterName', 'repairNotes', 'createdBy', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.orgId == 'ruamkuson_samutprakan'
+        && isNonEmptyStr(data.docNumber, 64)
+        && data.category in ['vehicle', 'medical', 'office', 'building']
+        && isNonEmptyStr(data.subCategory, 100)
+        && isNonEmptyStr(data.assetName, 200)
+        && isOptStr(data, 'locationOrPlate', 150)
+        && isNonEmptyStr(data.issueDescription, 1000)
+        && data.estimatedCost is number && data.estimatedCost >= 0 && data.estimatedCost <= 10000000
+        && data.status in ['pending', 'in_progress', 'completed', 'cancelled']
+        && isNonEmptyStr(data.reporterName, 150)
+        && isOptStr(data, 'repairNotes', 1000)
+        && isNonEmptyStr(data.createdBy, 128)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPavilionRequest(data) {
+      return data.keys().hasAll(['id', 'orgId', 'docNumber', 'pavilionName', 'applicantName', 'relationship', 'phone', 'checkInDate', 'checkOutDate', 'deceasedName', 'ceremonyType', 'status', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'docNumber', 'pavilionName', 'applicantName', 'relationship', 'phone', 'checkInDate', 'checkInTime', 'checkOutDate', 'checkOutTime', 'cremationTemple', 'cremationDate', 'cremationTime', 'ceremonyType', 'lengJoeiColor', 'signageOptions', 'deceasedName', 'deceasedAge', 'deceasedNickname', 'bathingDate', 'schedules', 'cemeteryLocation', 'cemeteryDate', 'cemeteryTime', 'otherNotes', 'attachments', 'status', 'applicantSignature', 'approverSignature', 'createdBy', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.orgId == 'ruamkuson_samutprakan'
+        && isNonEmptyStr(data.docNumber, 64)
+        && isNonEmptyStr(data.pavilionName, 100)
+        && isNonEmptyStr(data.applicantName, 150)
+        && isNonEmptyStr(data.relationship, 100)
+        && isNonEmptyStr(data.phone, 40)
+        && isNonEmptyStr(data.checkInDate, 20)
+        && isOptStr(data, 'checkInTime', 20)
+        && isNonEmptyStr(data.checkOutDate, 20)
+        && isOptStr(data, 'checkOutTime', 20)
+        && isOptStr(data, 'cremationTemple', 200)
+        && isOptStr(data, 'cremationDate', 20)
+        && isOptStr(data, 'cremationTime', 20)
+        && data.ceremonyType in ['thai', 'chinese', 'mixed']
+        && isOptStr(data, 'lengJoeiColor', 40)
+        && (!('signageOptions' in data) || (data.signageOptions is list && data.signageOptions.size() <= 10))
+        && isNonEmptyStr(data.deceasedName, 150)
+        && isOptStr(data, 'deceasedAge', 20)
+        && isOptStr(data, 'deceasedNickname', 60)
+        && isOptStr(data, 'bathingDate', 30)
+        && (!('schedules' in data) || (data.schedules is list && data.schedules.size() <= 15))
+        && isOptStr(data, 'cemeteryLocation', 200)
+        && isOptStr(data, 'cemeteryDate', 20)
+        && isOptStr(data, 'cemeteryTime', 20)
+        && isOptStr(data, 'otherNotes', 1000)
+        && (!('attachments' in data) || (data.attachments is list && data.attachments.size() <= 10))
+        && data.status in ['pending', 'verified', 'approved', 'rejected']
+        && (!('applicantSignature' in data) || data.applicantSignature is map)
+        && (!('approverSignature' in data) || data.approverSignature is map)
+        && isNonEmptyStr(data.createdBy, 128)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['id', 'orgId', 'title', 'message', 'category', 'createdBy', 'createdAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'title', 'message', 'category', 'readBy', 'createdBy', 'createdAt'])
+        && isValidId(data.id)
+        && data.orgId == 'ruamkuson_samutprakan'
+        && isNonEmptyStr(data.title, 200)
+        && isNonEmptyStr(data.message, 500)
+        && data.category in ['incoming', 'outgoing', 'leave', 'approval', 'loan', 'pavilion', 'repair']
+        && (!('readBy' in data) || (data.readBy is list && data.readBy.size() <= 100))
+        && isNonEmptyStr(data.createdBy, 128)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidAppSettings(data) {
+      return data.keys().hasAll(['id', 'orgId', 'leaveApprovalSteps', 'customVehicleTypes', 'updatedBy', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'leaveApprovalSteps', 'customVehicleTypes', 'updatedBy', 'updatedAt'])
+        && isValidId(data.id)
+        && data.orgId == 'ruamkuson_samutprakan'
+        && data.leaveApprovalSteps is list && data.leaveApprovalSteps.size() > 0 && data.leaveApprovalSteps.size() <= 5 && data.leaveApprovalSteps[0] is string
+        && data.customVehicleTypes is list && data.customVehicleTypes.size() <= 30
+        && isNonEmptyStr(data.updatedBy, 128)
+        && data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+    match /roles/{uid} {
+      allow get: if isVerifiedUser() && (uid == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && (resource.data.uid == request.auth.uid || isBootstrapAdmin());
+      allow create: if isAdmin() && isValidId(uid) && isValidRoleAssignment(incoming()) && incoming().uid == uid && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(uid) && isValidRoleAssignment(incoming()) && incoming().uid == existing().uid && incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isAdmin() && isValidId(uid);
+    }
+
+    match /staff_directory/{staffId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isAdmin() && isValidId(staffId) && isValidStaffDirectory(incoming()) && incoming().id == staffId && incoming().createdBy == request.auth.uid && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(staffId) && isValidStaffDirectory(incoming()) && isImmutableOrgMeta() && (
+        isAdmin() ||
+        (existing().authUid == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['signatureDataUrl', 'updatedAt']))
+      );
+      allow delete: if isAdmin() && isValidId(staffId);
+    }
+
+    match /staff_private/{staffId} {
+      allow get: if isVerifiedUser() && (existing().authUid == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && (resource.data.authUid == request.auth.uid || isBootstrapAdmin());
+      allow create: if isAdmin() && isValidId(staffId) && isValidStaffPrivate(incoming()) && incoming().staffId == staffId && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(staffId) && isValidStaffPrivate(incoming()) && incoming().staffId == existing().staffId && incoming().updatedAt == request.time && (
+        isAdmin() ||
+        (existing().authUid == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['pinHash', 'updatedAt']))
+      );
+      allow delete: if isAdmin() && isValidId(staffId);
+    }
+
+    match /incoming_docs/{docId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isVerifiedUser() && isValidId(docId) && isValidRegistryDoc(incoming()) && incoming().id == docId && incoming().createdBy == request.auth.uid && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(docId) && isValidRegistryDoc(incoming()) && isImmutableOrgMeta() && (
+        isAdmin() ||
+        (isRegistrar() && incoming().diff(existing()).affectedKeys().hasOnly(['docDate', 'fromOrg', 'toOrg', 'subject', 'handlerName', 'attachmentName', 'attachmentData', 'notes', 'updatedAt']))
+      );
+      allow delete: if isRegistrar() && isValidId(docId);
+    }
+
+    match /outgoing_docs/{docId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isVerifiedUser() && isValidId(docId) && isValidRegistryDoc(incoming()) && incoming().id == docId && incoming().createdBy == request.auth.uid && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(docId) && isValidRegistryDoc(incoming()) && isImmutableOrgMeta() && (
+        isAdmin() ||
+        (isRegistrar() && incoming().diff(existing()).affectedKeys().hasOnly(['docDate', 'fromOrg', 'toOrg', 'subject', 'handlerName', 'attachmentName', 'attachmentData', 'notes', 'updatedAt']))
+      );
+      allow delete: if isRegistrar() && isValidId(docId);
+    }
+
+    match /leave_requests/{reqId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && (resource.data.createdBy == request.auth.uid || resource.data.orgId == 'ruamkuson_samutprakan');
+      allow create: if isVerifiedUser() && isValidId(reqId) && isValidLeaveRequest(incoming()) && incoming().id == reqId && incoming().createdBy == request.auth.uid && ((incoming().approvalRoute.size() == 1 && incoming().status == 'pending_manager') || (incoming().approvalRoute.size() >= 2 && incoming().status == 'pending_supervisor')) && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(reqId) && isValidLeaveRequest(incoming()) && isImmutableOrgMeta() && (
+        isAdmin() ||
+        (!(existing().status in ['approved', 'rejected']) && (
+          (isSupervisor() && existing().status == 'pending_supervisor' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'currentStep', 'supervisorSignature', 'rejectionReason', 'updatedAt'])) ||
+          (isManager() && existing().status == 'pending_manager' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'currentStep', 'managerSignature', 'rejectionReason', 'updatedAt']))
+        ))
+      );
+      allow delete: if isAdmin() && isValidId(reqId);
+    }
+
+    match /medical_items/{itemId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isVerifiedUser() && isValidId(itemId) && isValidInventoryItem(incoming()) && incoming().id == itemId && incoming().createdBy == request.auth.uid && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(itemId) && isValidInventoryItem(incoming()) && isImmutableOrgMeta() && (
+        isAdmin() ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['availableStock', 'updatedAt'])) ||
+        (isRegistrar() && incoming().diff(existing()).affectedKeys().hasOnly(['code', 'name', 'category', 'unit', 'totalStock', 'availableStock', 'condition', 'location', 'updatedAt']))
+      );
+      allow delete: if isRegistrar() && isValidId(itemId);
+    }
+
+    match /medical_loans/{loanId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isVerifiedUser() && isValidId(loanId) && isValidEquipmentLoan(incoming()) && incoming().id == loanId && incoming().createdBy == request.auth.uid && incoming().status == 'borrowed' && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(loanId) && isValidEquipmentLoan(incoming()) && isImmutableOrgMeta() && (
+        isAdmin() ||
+        (existing().status == 'borrowed' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'returnDate', 'returnNotes', 'staffSignature', 'updatedAt']))
+      );
+      allow delete: if isAdmin() && isValidId(loanId);
+    }
+
+    match /kitchen_items/{itemId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isVerifiedUser() && isValidId(itemId) && isValidInventoryItem(incoming()) && incoming().id == itemId && incoming().createdBy == request.auth.uid && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(itemId) && isValidInventoryItem(incoming()) && isImmutableOrgMeta() && (
+        isAdmin() ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['availableStock', 'updatedAt'])) ||
+        (isRegistrar() && incoming().diff(existing()).affectedKeys().hasOnly(['code', 'name', 'category', 'unit', 'totalStock', 'availableStock', 'condition', 'location', 'updatedAt']))
+      );
+      allow delete: if isRegistrar() && isValidId(itemId);
+    }
+
+    match /kitchen_loans/{loanId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isVerifiedUser() && isValidId(loanId) && isValidEquipmentLoan(incoming()) && incoming().id == loanId && incoming().createdBy == request.auth.uid && incoming().status == 'borrowed' && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(loanId) && isValidEquipmentLoan(incoming()) && isImmutableOrgMeta() && (
+        isAdmin() ||
+        (existing().status == 'borrowed' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'returnDate', 'returnNotes', 'staffSignature', 'updatedAt']))
+      );
+      allow delete: if isAdmin() && isValidId(loanId);
+    }
+
+    match /vehicles/{vehicleId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isSupervisor() && isValidId(vehicleId) && isValidVehicle(incoming()) && incoming().id == vehicleId && incoming().createdBy == request.auth.uid && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(vehicleId) && isValidVehicle(incoming()) && isImmutableOrgMeta() && (
+        isAdmin() ||
+        (isSupervisor() && incoming().diff(existing()).affectedKeys().hasOnly(['callsign', 'plateNumber', 'vehicleType', 'station', 'driverName', 'crewNames', 'status', 'updatedAt'])) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+      );
+      allow delete: if isAdmin() && isValidId(vehicleId);
+    }
+
+    match /vehicle_inspections/{inspId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isVerifiedUser() && isValidId(inspId) && isValidVehicleInspection(incoming()) && incoming().id == inspId && incoming().createdBy == request.auth.uid && incoming().createdAt == request.time;
+      allow update: if isAdmin() && isValidId(inspId) && isValidVehicleInspection(incoming()) && incoming().id == existing().id && incoming().orgId == existing().orgId && incoming().createdBy == existing().createdBy && incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin() && isValidId(inspId);
+    }
+
+    match /repairs/{repairId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isVerifiedUser() && isValidId(repairId) && isValidRepairRequest(incoming()) && incoming().id == repairId && incoming().createdBy == request.auth.uid && incoming().status == 'pending' && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(repairId) && isValidRepairRequest(incoming()) && isImmutableOrgMeta() && (
+        isAdmin() ||
+        (!(existing().status in ['completed', 'cancelled']) && isSupervisor() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'estimatedCost', 'repairNotes', 'updatedAt']))
+      );
+      allow delete: if isAdmin() && isValidId(repairId);
+    }
+
+    match /pavilion_requests/{reqId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isVerifiedUser() && isValidId(reqId) && isValidPavilionRequest(incoming()) && incoming().id == reqId && incoming().createdBy == request.auth.uid && incoming().status == 'pending' && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(reqId) && isValidPavilionRequest(incoming()) && isImmutableOrgMeta() && (
+        isAdmin() ||
+        (!(existing().status in ['approved', 'rejected']) && (
+          (isRegistrar() && existing().status == 'pending' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'attachments', 'updatedAt'])) ||
+          (isManager() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approverSignature', 'updatedAt']))
+        ))
+      );
+      allow delete: if isAdmin() && isValidId(reqId);
+    }
+
+    match /notifications/{notifId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isVerifiedUser() && isValidId(notifId) && isValidNotification(incoming()) && incoming().id == notifId && incoming().createdBy == request.auth.uid && incoming().createdAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(notifId) && isValidNotification(incoming()) && incoming().id == existing().id && incoming().orgId == existing().orgId && incoming().createdBy == existing().createdBy && incoming().createdAt == existing().createdAt && (
+        isAdmin() ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['readBy'])
+      );
+      allow delete: if isAdmin() && isValidId(notifId);
+    }
+
+    match /app_settings/{settingId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isAdmin() && isValidId(settingId) && isValidAppSettings(incoming()) && incoming().id == settingId && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(settingId) && isValidAppSettings(incoming()) && incoming().id == existing().id && incoming().orgId == existing().orgId && incoming().updatedAt == request.time;
+      allow delete: if isAdmin() && isValidId(settingId);
+    }
+  }
+}
