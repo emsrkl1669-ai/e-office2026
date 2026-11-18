@@ -149,7 +149,7 @@ const AppShell: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="app-shell-root min-h-screen bg-slate-50 flex">
       {/* Desktop Sidebar */}
       <aside className="no-print hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-[#0F2744] text-slate-200 border-r border-slate-800">
         <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">

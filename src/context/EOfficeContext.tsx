@@ -17,17 +17,7 @@ import {
   ADMIN_BOOTSTRAP_EMAIL,
   DEFAULT_APP_SETTINGS,
   ORG_ID,
-  SEED_INCOMING_DOCS,
-  SEED_KITCHEN_ITEMS,
-  SEED_KITCHEN_LOANS,
-  SEED_LEAVE_REQUESTS,
-  SEED_MEDICAL_ITEMS,
-  SEED_MEDICAL_LOANS,
-  SEED_OUTGOING_DOCS,
-  SEED_PAVILION_REQUESTS,
-  SEED_REPAIRS,
   SEED_STAFF,
-  SEED_VEHICLES,
 } from '../data/seedData';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../lib/firebase';
 import {
@@ -48,7 +38,23 @@ import {
 import { sha256Hex } from '../utils/crypto';
 import { PrintPreviewModal } from '../components/PrintPreviewModal';
 
-const CACHE_KEY = 'rk_eoffice_state_v1';
+const LEGACY_CACHE_KEY = 'rk_eoffice_state_v1';
+const CACHE_KEY = 'rk_eoffice_state_v2';
+const SAMPLE_PURGED_KEY = 'rk_sample_purged_v2';
+
+const LEGACY_SAMPLE_RECORD_IDS: Record<string, string[]> = {
+  incoming_docs: ['inc_001', 'inc_002'],
+  outgoing_docs: ['out_001'],
+  leave_requests: ['leave_001', 'leave_002'],
+  medical_items: ['med_001', 'med_002', 'med_003', 'med_004'],
+  medical_loans: ['mloan_001'],
+  kitchen_items: ['kit_001', 'kit_002', 'kit_003'],
+  kitchen_loans: ['kloan_001'],
+  vehicles: ['veh_400', 'veh_401', 'veh_402', 'veh_403', 'veh_404', 'veh_405'],
+  repairs: ['rep_001', 'rep_002'],
+  pavilion_requests: ['pav_001'],
+  notifications: ['notif_init_1'],
+};
 
 interface CachedState {
   staff: StaffMember[];
@@ -70,39 +76,60 @@ interface CachedState {
 function getDefaultCache(): CachedState {
   return {
     staff: SEED_STAFF,
-    incomingDocs: SEED_INCOMING_DOCS,
-    outgoingDocs: SEED_OUTGOING_DOCS,
-    leaveRequests: SEED_LEAVE_REQUESTS,
-    medicalItems: SEED_MEDICAL_ITEMS,
-    medicalLoans: SEED_MEDICAL_LOANS,
-    kitchenItems: SEED_KITCHEN_ITEMS,
-    kitchenLoans: SEED_KITCHEN_LOANS,
-    vehicles: SEED_VEHICLES,
+    incomingDocs: [],
+    outgoingDocs: [],
+    leaveRequests: [],
+    medicalItems: [],
+    medicalLoans: [],
+    kitchenItems: [],
+    kitchenLoans: [],
+    vehicles: [],
     vehicleInspections: [],
-    repairs: SEED_REPAIRS,
-    pavilionRequests: SEED_PAVILION_REQUESTS,
-    notifications: [
-      {
-        id: 'notif_init_1',
-        orgId: ORG_ID,
-        title: 'ยินดีต้อนรับสู่ระบบ e-Office',
-        message: 'ฐานข้อมูลพร้อมใช้งานสำหรับงานสารบรรณ อนุมัติใบลา พัสดุ และกู้ชีพ-กู้ภัย',
-        category: 'approval',
-        readBy: [],
-        createdBy: 'system',
-        createdAt: new Date().toISOString(),
-      },
-    ],
+    repairs: [],
+    pavilionRequests: [],
+    notifications: [],
     settings: DEFAULT_APP_SETTINGS,
   };
+}
+
+function filterOutSampleIds<T extends { id: string }>(items: unknown, sampleIds: string[]): T[] {
+  if (!Array.isArray(items)) return [];
+  const sampleSet = new Set(sampleIds);
+  return items.filter((item): item is T => Boolean(item && typeof item === 'object' && 'id' in item && !sampleSet.has((item as { id: string }).id)));
 }
 
 function loadLocalCache(): CachedState {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return getDefaultCache();
-    const parsed = JSON.parse(raw);
-    return { ...getDefaultCache(), ...parsed };
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { ...getDefaultCache(), ...parsed };
+    }
+    const legacyRaw = localStorage.getItem(LEGACY_CACHE_KEY);
+    if (legacyRaw) {
+      const parsed = JSON.parse(legacyRaw);
+      const cleaned: CachedState = {
+        ...getDefaultCache(),
+        staff: Array.isArray(parsed.staff) && parsed.staff.length > 0 ? parsed.staff : SEED_STAFF,
+        incomingDocs: filterOutSampleIds<RegistryDocument>(parsed.incomingDocs, LEGACY_SAMPLE_RECORD_IDS.incoming_docs),
+        outgoingDocs: filterOutSampleIds<RegistryDocument>(parsed.outgoingDocs, LEGACY_SAMPLE_RECORD_IDS.outgoing_docs),
+        leaveRequests: filterOutSampleIds<LeaveRequest>(parsed.leaveRequests, LEGACY_SAMPLE_RECORD_IDS.leave_requests),
+        medicalItems: filterOutSampleIds<InventoryItem>(parsed.medicalItems, LEGACY_SAMPLE_RECORD_IDS.medical_items),
+        medicalLoans: filterOutSampleIds<EquipmentLoan>(parsed.medicalLoans, LEGACY_SAMPLE_RECORD_IDS.medical_loans),
+        kitchenItems: filterOutSampleIds<InventoryItem>(parsed.kitchenItems, LEGACY_SAMPLE_RECORD_IDS.kitchen_items),
+        kitchenLoans: filterOutSampleIds<EquipmentLoan>(parsed.kitchenLoans, LEGACY_SAMPLE_RECORD_IDS.kitchen_loans),
+        vehicles: filterOutSampleIds<Vehicle>(parsed.vehicles, LEGACY_SAMPLE_RECORD_IDS.vehicles),
+        vehicleInspections: Array.isArray(parsed.vehicleInspections) ? parsed.vehicleInspections : [],
+        repairs: filterOutSampleIds<RepairRequest>(parsed.repairs, LEGACY_SAMPLE_RECORD_IDS.repairs),
+        pavilionRequests: filterOutSampleIds<PavilionRequest>(parsed.pavilionRequests, LEGACY_SAMPLE_RECORD_IDS.pavilion_requests),
+        notifications: filterOutSampleIds<NotificationItem>(parsed.notifications, LEGACY_SAMPLE_RECORD_IDS.notifications),
+        settings: parsed.settings || DEFAULT_APP_SETTINGS,
+      };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(cleaned));
+      localStorage.removeItem(LEGACY_CACHE_KEY);
+      return cleaned;
+    }
+    return getDefaultCache();
   } catch {
     return getDefaultCache();
   }
@@ -257,7 +284,8 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const isCloudSynced = Boolean(firebaseUser && firebaseUser.emailVerified);
 
-  // Seed Firestore when Admin signs in for the first time
+  // Seed core roles, settings & real staff directory when Admin signs in for the first time,
+  // and purge any previously-seeded sample operational records from Firestore.
   const seedFirestoreIfEmpty = useCallback(async (user: User) => {
     if (seededCloudRef.current) return;
     if (user.email?.toLowerCase() !== ADMIN_BOOTSTRAP_EMAIL) return;
@@ -267,78 +295,74 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const staffSnap = await getDocs(
         query(collection(db, 'staff_directory'), where('orgId', '==', ORG_ID))
       );
-      if (!staffSnap.empty) return;
-
-      // Seed Role for Admin
-      await setDoc(doc(db, 'roles', user.uid), {
-        uid: user.uid,
-        email: user.email,
-        role: 'Admin',
-        staffId: 'staff_01',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      // Seed App Settings
-      await setDoc(doc(db, 'app_settings', DEFAULT_APP_SETTINGS.id), {
-        ...DEFAULT_APP_SETTINGS,
-        updatedBy: user.uid,
-        updatedAt: serverTimestamp(),
-      });
-
-      // Seed Staff Directory + Staff Private
-      for (const s of SEED_STAFF) {
-        await setDoc(doc(db, 'staff_directory', s.id), {
-          id: s.id,
-          orgId: ORG_ID,
-          employeeCode: s.employeeCode,
-          fullName: s.fullName,
-          department: s.department,
-          position: s.position,
-          startDate: s.startDate,
-          role: s.role,
-          status: s.status,
-          ...(s.id === 'staff_01' ? { authUid: user.uid } : {}),
-          createdBy: user.uid,
+      if (staffSnap.empty) {
+        // Seed Role for Admin
+        await setDoc(doc(db, 'roles', user.uid), {
+          uid: user.uid,
+          email: user.email,
+          role: 'Admin',
+          staffId: 'staff_01',
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
 
-        await setDoc(doc(db, 'staff_private', s.id), {
-          staffId: s.id,
-          ...(s.id === 'staff_01' ? { authUid: user.uid } : {}),
-          email: s.email,
-          phone: s.phone,
-          pinHash: s.pinHash,
+        // Seed App Settings
+        await setDoc(doc(db, 'app_settings', DEFAULT_APP_SETTINGS.id), {
+          ...DEFAULT_APP_SETTINGS,
+          updatedBy: user.uid,
           updatedAt: serverTimestamp(),
         });
-      }
 
-      // Seed Operational Collections
-      const seedCollection = async <T extends { id: string }>(col: string, items: T[], includeUpdatedAt = true) => {
-        for (const item of items) {
-          await setDoc(doc(db, col, item.id), {
-            ...item,
+        // Seed Staff Directory + Staff Private
+        for (const s of SEED_STAFF) {
+          await setDoc(doc(db, 'staff_directory', s.id), {
+            id: s.id,
             orgId: ORG_ID,
+            employeeCode: s.employeeCode,
+            fullName: s.fullName,
+            department: s.department,
+            position: s.position,
+            startDate: s.startDate,
+            role: s.role,
+            status: s.status,
+            ...(s.id === 'staff_01' ? { authUid: user.uid } : {}),
             createdBy: user.uid,
             createdAt: serverTimestamp(),
-            ...(includeUpdatedAt ? { updatedAt: serverTimestamp() } : {}),
+            updatedAt: serverTimestamp(),
+          });
+
+          await setDoc(doc(db, 'staff_private', s.id), {
+            staffId: s.id,
+            ...(s.id === 'staff_01' ? { authUid: user.uid } : {}),
+            email: s.email,
+            phone: s.phone,
+            pinHash: s.pinHash,
+            updatedAt: serverTimestamp(),
           });
         }
-      };
+      }
 
-      await Promise.all([
-        seedCollection('incoming_docs', SEED_INCOMING_DOCS),
-        seedCollection('outgoing_docs', SEED_OUTGOING_DOCS),
-        seedCollection('leave_requests', SEED_LEAVE_REQUESTS),
-        seedCollection('medical_items', SEED_MEDICAL_ITEMS),
-        seedCollection('medical_loans', SEED_MEDICAL_LOANS),
-        seedCollection('kitchen_items', SEED_KITCHEN_ITEMS),
-        seedCollection('kitchen_loans', SEED_KITCHEN_LOANS),
-        seedCollection('vehicles', SEED_VEHICLES),
-        seedCollection('repairs', SEED_REPAIRS),
-        seedCollection('pavilion_requests', SEED_PAVILION_REQUESTS),
-      ]);
+      // One-time cleanup of legacy sample records in Firestore if previously seeded
+      let alreadyPurged = false;
+      try {
+        alreadyPurged = localStorage.getItem(SAMPLE_PURGED_KEY) === 'true';
+      } catch {
+        alreadyPurged = false;
+      }
+      if (!alreadyPurged) {
+        const deletes: Promise<void>[] = [];
+        for (const [colName, ids] of Object.entries(LEGACY_SAMPLE_RECORD_IDS)) {
+          for (const docId of ids) {
+            deletes.push(deleteDoc(doc(db, colName, docId)).catch(() => undefined));
+          }
+        }
+        await Promise.all(deletes);
+        try {
+          localStorage.setItem(SAMPLE_PURGED_KEY, 'true');
+        } catch {
+          // ignore
+        }
+      }
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'seed_initial_data');
     }
@@ -428,7 +452,6 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         onSnapshot(
           query(collection(db, colName), orgWhere),
           (snap) => {
-            if (snap.empty && colName !== 'notifications' && colName !== 'vehicle_inspections') return;
             const items = snap.docs.map((docSnap) => {
               const d = docSnap.data();
               return {

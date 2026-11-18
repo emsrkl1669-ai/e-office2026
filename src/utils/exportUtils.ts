@@ -38,6 +38,10 @@ export function exportToCsvUtf8(
 }
 
 export function exportToGoogleDocsFile(title: string, bodyHtml: string, fileName: string): void {
+  const formattedBody = bodyHtml.replace(
+    /<!--\s*A4_PAGE_BREAK\s*-->/g,
+    '<br clear="all" style="page-break-before:always;mso-break-type:section-break;" />'
+  );
   const htmlDoc = `
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word"
@@ -55,7 +59,7 @@ export function exportToGoogleDocsFile(title: string, bodyHtml: string, fileName
   </style>
 </head>
 <body>
-  ${bodyHtml}
+  ${formattedBody}
 </body>
 </html>`;
   const blob = new Blob(['\uFEFF' + htmlDoc], {

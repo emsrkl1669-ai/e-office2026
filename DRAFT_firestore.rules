@@ -474,6 +474,7 @@ service cloud.firestore {
       allow update: if isVerifiedUser() && isValidId(reqId) && isValidPavilionRequest(incoming()) && isImmutableOrgMeta() && (
         isAdmin() ||
         (!(existing().status in ['approved', 'rejected']) && (
+          ((isRegistrar() || existing().createdBy == request.auth.uid) && incoming().status == existing().status && incoming().diff(existing()).affectedKeys().hasOnly(['pavilionName', 'applicantName', 'relationship', 'phone', 'checkInDate', 'checkInTime', 'checkOutDate', 'checkOutTime', 'cremationTemple', 'cremationDate', 'cremationTime', 'ceremonyType', 'lengJoeiColor', 'signageOptions', 'deceasedName', 'deceasedAge', 'deceasedNickname', 'bathingDate', 'schedules', 'cemeteryLocation', 'cemeteryDate', 'cemeteryTime', 'otherNotes', 'attachments', 'applicantSignature', 'updatedAt'])) ||
           (isRegistrar() && existing().status == 'pending' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'attachments', 'updatedAt'])) ||
           (isManager() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approverSignature', 'updatedAt']))
         ))
