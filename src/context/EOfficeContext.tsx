@@ -256,7 +256,12 @@ export interface EOfficeContextValue extends CachedState {
   updateAppSettings: (next: AppSettings) => Promise<void>;
   exportBackupJson: () => Promise<void>;
   importBackupJson: (jsonText: string) => Promise<{ ok: boolean; restoredCount: number; error?: string }>;
-  openPrintPreview: (title: string, fileName: string, htmlContent: string) => void;
+  openPrintPreview: (
+    title: string,
+    fileName: string,
+    htmlContent: string,
+    orientation?: 'portrait' | 'landscape'
+  ) => void;
   canApproveTier1: boolean;
   canApproveTier2: boolean;
   canManageRegistry: boolean;
@@ -291,7 +296,8 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     title: string;
     fileName: string;
     htmlContent: string;
-  }>({ open: false, title: '', fileName: 'document', htmlContent: '' });
+    orientation: 'portrait' | 'landscape';
+  }>({ open: false, title: '', fileName: 'document', htmlContent: '', orientation: 'portrait' });
 
   const prevNotifCountRef = useRef<number>(cache.notifications.length);
   const seededCloudRef = useRef(false);
@@ -1090,8 +1096,13 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const openPrintPreview = (title: string, fileName: string, htmlContent: string) => {
-    setPrintModal({ open: true, title, fileName, htmlContent });
+  const openPrintPreview = (
+    title: string,
+    fileName: string,
+    htmlContent: string,
+    orientation: 'portrait' | 'landscape' = 'portrait'
+  ) => {
+    setPrintModal({ open: true, title, fileName, htmlContent, orientation });
   };
 
   const activeRole: UserRole = currentStaff?.role || 'Staff';
@@ -1142,6 +1153,7 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         title={printModal.title}
         fileName={printModal.fileName}
         htmlContent={printModal.htmlContent}
+        orientation={printModal.orientation}
         onClose={() => setPrintModal((p) => ({ ...p, open: false }))}
       />
     </EOfficeContext.Provider>

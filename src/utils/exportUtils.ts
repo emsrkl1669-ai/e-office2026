@@ -37,11 +37,20 @@ export function exportToCsvUtf8(
   triggerDownload(blob, `${fileName}.csv`);
 }
 
-export function exportToGoogleDocsFile(title: string, bodyHtml: string, fileName: string): void {
+export function exportToGoogleDocsFile(
+  title: string,
+  bodyHtml: string,
+  fileName: string,
+  orientation: 'portrait' | 'landscape' = 'portrait'
+): void {
   const formattedBody = bodyHtml.replace(
     /<!--\s*A4_PAGE_BREAK\s*-->/g,
     '<br clear="all" style="page-break-before:always;mso-break-type:section-break;" />'
   );
+  const pageCss =
+    orientation === 'landscape'
+      ? '@page { size: A4 landscape; mso-page-orientation: landscape; margin: 1.0cm 1.2cm; }'
+      : '@page { size: A4 portrait; margin: 1.5cm; }';
   const htmlDoc = `
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word"
@@ -50,10 +59,10 @@ export function exportToGoogleDocsFile(title: string, bodyHtml: string, fileName
   <meta charset="utf-8" />
   <title>${escapeHtml(title)}</title>
   <style>
-    @page { size: A4; margin: 1.5cm; }
-    body { font-family: 'Sarabun', 'TH SarabunPSK', sans-serif; font-size: 14pt; color: #0f172a; line-height: 1.55; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; font-size: 12pt; }
+    ${pageCss}
+    body { font-family: 'TH Sarabun New', 'Sarabun', 'TH SarabunPSK', sans-serif; font-size: 13pt; color: #0f172a; line-height: 1.45; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #cbd5e1; padding: 5px 7px; text-align: left; font-size: 11.5pt; }
     th { background-color: #f1f5f9; font-weight: bold; }
     h1, h2, h3 { color: #0f2744; margin-bottom: 6px; }
   </style>
