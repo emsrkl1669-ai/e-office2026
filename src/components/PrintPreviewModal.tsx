@@ -95,7 +95,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
               className={`a4-sheet-page bg-white w-full shadow-sm border border-slate-200 ${
                 isLandscape
                   ? 'min-h-[210mm] p-[10mm] sm:p-[11mm]'
-                  : 'min-h-[297mm] p-[12mm] sm:p-[14mm]'
+                  : 'min-h-[297mm] py-[10mm] px-[6%]'
               }`}
             >
               {pages.length > 1 && (

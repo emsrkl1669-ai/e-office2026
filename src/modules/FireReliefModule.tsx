@@ -683,7 +683,7 @@ export const FireReliefModule: React.FC = () => {
           <td style="padding:4px 2px;border:1px solid #334155;text-align:center;vertical-align:middle;font-variant-numeric:tabular-nums;">${v.girlCount || 0}</td>
           <td style="padding:4px 2px;border:1px solid #334155;text-align:center;vertical-align:middle;font-weight:700;font-variant-numeric:tabular-nums;background:#f8fafc;">${v.totalCount || 0}</td>
           <td style="padding:4px 6px;border:1px solid #334155;text-align:left;vertical-align:middle;word-break:keep-all;overflow-wrap:break-word;">${escapeHtml(v.assistanceDetail || '-')}</td>
-          <td style="padding:5px 6px;border:1px solid #334155;text-align:center;vertical-align:middle;height:28px;word-break:keep-all;overflow-wrap:break-word;">${escapeHtml(v.receiverName || '')}</td>
+          <td style="padding:6px 6px;border:1px solid #334155;text-align:center;vertical-align:middle;height:34px;min-height:34px;word-break:keep-all;overflow-wrap:break-word;">${escapeHtml(v.receiverName || '')}</td>
         </tr>`
       )
       .join('');
@@ -744,13 +744,13 @@ export const FireReliefModule: React.FC = () => {
           <colgroup>
             <col style="width:5%;" />
             <col style="width:9%;" />
-            <col style="width:21%;" />
+            <col style="width:25%;" />
             <col style="width:3.5%;" />
             <col style="width:3.5%;" />
-            <col style="width:4%;" />
-            <col style="width:4%;" />
+            <col style="width:4.25%;" />
+            <col style="width:4.25%;" />
             <col style="width:4.5%;" />
-            <col style="width:29.5%;" />
+            <col style="width:25%;" />
             <col style="width:16%;" />
           </colgroup>
           <thead>
@@ -901,7 +901,7 @@ export const FireReliefModule: React.FC = () => {
   <style>
     @page {
       size: A4 portrait;
-      margin: 9mm 10mm;
+      margin: 9mm 12.6mm;
     }
     * {
       box-sizing: border-box;
@@ -941,7 +941,7 @@ export const FireReliefModule: React.FC = () => {
       width: 210mm;
       min-height: 297mm;
       margin: 16px auto;
-      padding: 9mm 10mm;
+      padding: 9mm 6%;
       background: #ffffff;
       box-shadow: 0 4px 20px rgba(15, 23, 42, 0.12);
     }
