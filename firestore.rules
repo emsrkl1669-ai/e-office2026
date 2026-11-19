@@ -299,6 +299,46 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
+    function isValidFireReliefRequest(data) {
+      return data.keys().hasAll(['id', 'orgId', 'docNumber', 'incidentDate', 'incidentLocation', 'victims', 'fullDamageCases', 'fullDamageRate', 'partialDamageCases', 'partialDamageRate', 'riceBagsPerCase', 'riceBagTotal', 'riceBagPrice', 'waterPacksPerCase', 'waterPackTotal', 'waterPackPrice', 'blanketsPerCase', 'blanketTotal', 'blanketPrice', 'totalValue', 'cashDisbursed', 'status', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'docNumber', 'incidentDate', 'incidentTime', 'incidentLocation', 'certifiedDate', 'victims', 'fullDamageCases', 'fullDamageRate', 'partialDamageCases', 'partialDamageRate', 'deceasedCases', 'deceasedRate', 'riceBagsPerCase', 'riceBagTotal', 'riceBagPrice', 'waterPacksPerCase', 'waterPackTotal', 'waterPackPrice', 'blanketsPerCase', 'blanketTotal', 'blanketPrice', 'extraReliefNote', 'extraReliefValue', 'totalValue', 'cashDisbursed', 'attachments', 'notes', 'status', 'recorderName', 'approverSignature', 'createdBy', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.orgId == 'ruamkuson_samutprakan'
+        && isNonEmptyStr(data.docNumber, 64)
+        && isNonEmptyStr(data.incidentDate, 20)
+        && isOptStr(data, 'incidentTime', 20)
+        && isNonEmptyStr(data.incidentLocation, 300)
+        && isOptStr(data, 'certifiedDate', 20)
+        && data.victims is list && data.victims.size() <= 100
+        && data.fullDamageCases is number && data.fullDamageCases >= 0 && data.fullDamageCases <= 10000
+        && data.fullDamageRate is number && data.fullDamageRate >= 0 && data.fullDamageRate <= 1000000
+        && data.partialDamageCases is number && data.partialDamageCases >= 0 && data.partialDamageCases <= 10000
+        && data.partialDamageRate is number && data.partialDamageRate >= 0 && data.partialDamageRate <= 1000000
+        && (!('deceasedCases' in data) || (data.deceasedCases is number && data.deceasedCases >= 0 && data.deceasedCases <= 1000))
+        && (!('deceasedRate' in data) || (data.deceasedRate is number && data.deceasedRate >= 0 && data.deceasedRate <= 1000000))
+        && data.riceBagsPerCase is number && data.riceBagsPerCase >= 0 && data.riceBagsPerCase <= 1000
+        && data.riceBagTotal is number && data.riceBagTotal >= 0 && data.riceBagTotal <= 100000
+        && data.riceBagPrice is number && data.riceBagPrice >= 0 && data.riceBagPrice <= 100000
+        && data.waterPacksPerCase is number && data.waterPacksPerCase >= 0 && data.waterPacksPerCase <= 1000
+        && data.waterPackTotal is number && data.waterPackTotal >= 0 && data.waterPackTotal <= 100000
+        && data.waterPackPrice is number && data.waterPackPrice >= 0 && data.waterPackPrice <= 100000
+        && data.blanketsPerCase is number && data.blanketsPerCase >= 0 && data.blanketsPerCase <= 1000
+        && data.blanketTotal is number && data.blanketTotal >= 0 && data.blanketTotal <= 100000
+        && data.blanketPrice is number && data.blanketPrice >= 0 && data.blanketPrice <= 100000
+        && isOptStr(data, 'extraReliefNote', 300)
+        && (!('extraReliefValue' in data) || (data.extraReliefValue is number && data.extraReliefValue >= 0 && data.extraReliefValue <= 10000000))
+        && data.totalValue is number && data.totalValue >= 0 && data.totalValue <= 100000000
+        && data.cashDisbursed is number && data.cashDisbursed >= 0 && data.cashDisbursed <= 100000000
+        && (!('attachments' in data) || (data.attachments is list && data.attachments.size() <= 10))
+        && isOptStr(data, 'notes', 1000)
+        && data.status in ['pending', 'approved', 'rejected']
+        && isOptStr(data, 'recorderName', 150)
+        && (!('approverSignature' in data) || data.approverSignature is map)
+        && isNonEmptyStr(data.createdBy, 128)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
     function isValidNotification(data) {
       return data.keys().hasAll(['id', 'orgId', 'title', 'message', 'category', 'createdBy', 'createdAt'])
         && data.keys().hasOnly(['id', 'orgId', 'title', 'message', 'category', 'readBy', 'createdBy', 'createdAt'])
@@ -306,7 +346,7 @@ service cloud.firestore {
         && data.orgId == 'ruamkuson_samutprakan'
         && isNonEmptyStr(data.title, 200)
         && isNonEmptyStr(data.message, 500)
-        && data.category in ['incoming', 'outgoing', 'leave', 'approval', 'loan', 'pavilion', 'repair']
+        && data.category in ['incoming', 'outgoing', 'leave', 'approval', 'loan', 'pavilion', 'repair', 'fire_relief']
         && (!('readBy' in data) || (data.readBy is list && data.readBy.size() <= 100))
         && isNonEmptyStr(data.createdBy, 128)
         && data.createdAt is timestamp;
@@ -477,6 +517,20 @@ service cloud.firestore {
           ((isRegistrar() || existing().createdBy == request.auth.uid) && incoming().status == existing().status && incoming().diff(existing()).affectedKeys().hasOnly(['pavilionName', 'applicantName', 'relationship', 'phone', 'checkInDate', 'checkInTime', 'checkOutDate', 'checkOutTime', 'cremationTemple', 'cremationDate', 'cremationTime', 'ceremonyType', 'lengJoeiColor', 'signageOptions', 'deceasedName', 'deceasedAge', 'deceasedNickname', 'bathingDate', 'schedules', 'cemeteryLocation', 'cemeteryDate', 'cemeteryTime', 'otherNotes', 'attachments', 'applicantSignature', 'updatedAt'])) ||
           (isRegistrar() && existing().status == 'pending' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'attachments', 'updatedAt'])) ||
           (isManager() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approverSignature', 'updatedAt']))
+        ))
+      );
+      allow delete: if isAdmin() && isValidId(reqId);
+    }
+
+    match /fire_relief_requests/{reqId} {
+      allow get: if isVerifiedUser() && isOrgDoc(existing());
+      allow list: if isVerifiedUser() && resource.data.orgId == 'ruamkuson_samutprakan';
+      allow create: if isVerifiedUser() && isValidId(reqId) && isValidFireReliefRequest(incoming()) && incoming().id == reqId && incoming().createdBy == request.auth.uid && incoming().status == 'pending' && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(reqId) && isValidFireReliefRequest(incoming()) && isImmutableOrgMeta() && (
+        isAdmin() ||
+        (!(existing().status in ['approved', 'rejected']) && (
+          ((isRegistrar() || existing().createdBy == request.auth.uid) && incoming().status == existing().status && incoming().diff(existing()).affectedKeys().hasOnly(['incidentDate', 'incidentTime', 'incidentLocation', 'certifiedDate', 'victims', 'fullDamageCases', 'fullDamageRate', 'partialDamageCases', 'partialDamageRate', 'deceasedCases', 'deceasedRate', 'riceBagsPerCase', 'riceBagTotal', 'riceBagPrice', 'waterPacksPerCase', 'waterPackTotal', 'waterPackPrice', 'blanketsPerCase', 'blanketTotal', 'blanketPrice', 'extraReliefNote', 'extraReliefValue', 'totalValue', 'cashDisbursed', 'attachments', 'notes', 'recorderName', 'updatedAt'])) ||
+          (isManager() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'certifiedDate', 'approverSignature', 'updatedAt']))
         ))
       );
       allow delete: if isAdmin() && isValidId(reqId);

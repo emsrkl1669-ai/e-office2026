@@ -1,5 +1,6 @@
 import {
   AppSettings,
+  FireReliefAttachment,
   InspectionCheckItem,
   PavilionAttachment,
   StaffMember,
@@ -50,6 +51,25 @@ export const DEFAULT_PAVILION_ATTACHMENTS: PavilionAttachment[] = [
   { key: 'police_report', label: 'ใบแจ้งความ (ถ้ามี)', required: false, verified: false },
   { key: 'applicant_id', label: 'บัตรประชาชนผู้ยื่น', required: true, verified: false },
   { key: 'applicant_house', label: 'ทะเบียนบ้านผู้ยื่น', required: true, verified: false },
+];
+
+export const DEFAULT_FIRE_RELIEF_ATTACHMENTS: FireReliefAttachment[] = [
+  { key: 'dmg_id', label: 'สำเนาบัตรประชาชน 2 ฉบับ (รับรองสำเนา)', caseGroup: 'damaged', required: true, verified: false },
+  { key: 'dmg_house', label: 'สำเนาทะเบียนบ้าน 2 ฉบับ (รับรองสำเนา)', caseGroup: 'damaged', required: true, verified: false },
+  { key: 'dec_cert', label: 'สำเนาใบมรณบัตร (สำเนา) พร้อมฉบับจริง (ขอดู) รับรองสำเนา', caseGroup: 'deceased', required: false, verified: false },
+  { key: 'dec_id', label: 'สำเนาบัตรประชาชน 2 ฉบับ (กรณีเสียชีวิต รับรองสำเนา)', caseGroup: 'deceased', required: false, verified: false },
+  { key: 'dec_house', label: 'สำเนาทะเบียนบ้าน 2 ฉบับ (กรณีเสียชีวิต รับรองสำเนา)', caseGroup: 'deceased', required: false, verified: false },
+];
+
+export const FIRE_RELIEF_DAMAGED_NOTES: string[] = [
+  '1. สำเนาบัตรประชาชน 2 ฉบับ (รับรองสำเนา)',
+  '2. สำเนาทะเบียนบ้าน 2 ฉบับ (รับรองสำเนา)',
+];
+
+export const FIRE_RELIEF_DECEASED_NOTES: string[] = [
+  '1. สำเนาใบมรณบัตร (สำเนา) พร้อมฉบับจริง (ขอดู) รับรองสำเนา',
+  '2. สำเนาบัตรประชาชน 2 ฉบับ (รับรองสำเนา)',
+  '3. สำเนาทะเบียนบ้าน 2 ฉบับ (รับรองสำเนา)',
 ];
 
 export const OFFICE_REPAIR_SUBCATEGORIES = [

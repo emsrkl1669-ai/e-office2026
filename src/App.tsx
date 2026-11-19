@@ -8,6 +8,7 @@ import {
   FileInput,
   FileOutput,
   Flame,
+  FlameKindling,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -24,6 +25,7 @@ import { FOUNDATION_LOGO_PATH, FOUNDATION_NAME } from './data/seedData';
 import { AdminUsersModule } from './modules/AdminUsersModule';
 import { DashboardOverview } from './modules/DashboardOverview';
 import { DocumentRegistryModule } from './modules/DocumentRegistryModule';
+import { FireReliefModule } from './modules/FireReliefModule';
 import { FleetModule } from './modules/FleetModule';
 import { InventoryModule } from './modules/InventoryModule';
 import { LeaveRequestModule } from './modules/LeaveRequestModule';
@@ -44,6 +46,7 @@ const NAV_ITEMS: { key: ModuleKey; label: string; icon: React.ComponentType<{ cl
   { key: 'fleet', label: 'ยานพาหนะและตรวจสภาพ', icon: Ambulance },
   { key: 'repair', label: 'ระบบแจ้งซ่อม', icon: Wrench },
   { key: 'pavilion', label: 'ขอใช้ศาลาสวดอภิธรรม', icon: Flame },
+  { key: 'fire_relief', label: 'สงเคราะห์ผู้ประสบเหตุเพลิงไหม้', icon: FlameKindling },
   { key: 'reports', label: 'รายงานและส่งออกข้อมูล', icon: BarChart3 },
   { key: 'admin', label: 'จัดการผู้ใช้งานและสิทธิ์', icon: Users, adminOnly: true },
 ];
@@ -141,6 +144,8 @@ const AppShell: React.FC = () => {
         return <RepairModule />;
       case 'pavilion':
         return <PavilionModule />;
+      case 'fire_relief':
+        return <FireReliefModule />;
       case 'reports':
         return <ReportsModule />;
       case 'admin':

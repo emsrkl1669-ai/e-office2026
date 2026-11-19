@@ -249,6 +249,27 @@
       },
       "required": ["id", "orgId", "docNumber", "pavilionName", "applicantName", "relationship", "phone", "checkInDate", "checkOutDate", "deceasedName", "status", "createdBy", "createdAt", "updatedAt"]
     },
+    "FireReliefRequest": {
+      "title": "FireReliefRequest",
+      "description": "Fire disaster relief assistance form (แบบ อค.02) with victim list, aid valuation, cash disbursement, and manager certification.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "maxLength": 64 },
+        "docNumber": { "type": "string", "maxLength": 64 },
+        "incidentDate": { "type": "string", "maxLength": 20 },
+        "incidentTime": { "type": "string", "maxLength": 20 },
+        "incidentLocation": { "type": "string", "maxLength": 300 },
+        "certifiedDate": { "type": "string", "maxLength": 20 },
+        "totalValue": { "type": "number" },
+        "cashDisbursed": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "docNumber", "incidentDate", "incidentLocation", "totalValue", "cashDisbursed", "status", "createdBy", "createdAt", "updatedAt"]
+    },
     "NotificationItem": {
       "title": "NotificationItem",
       "description": "Real-time notification event for document registry, approvals, and loans.",
@@ -258,7 +279,7 @@
         "orgId": { "type": "string", "maxLength": 64 },
         "title": { "type": "string", "maxLength": 200 },
         "message": { "type": "string", "maxLength": 500 },
-        "category": { "type": "string", "enum": ["incoming", "outgoing", "leave", "approval", "loan", "pavilion", "repair"] },
+        "category": { "type": "string", "enum": ["incoming", "outgoing", "leave", "approval", "loan", "pavilion", "repair", "fire_relief"] },
         "createdBy": { "type": "string", "maxLength": 128 },
         "createdAt": { "type": "string", "format": "date-time" }
       },
@@ -333,6 +354,10 @@
     "/pavilion_requests/{reqId}": {
       "schema": { "$ref": "#/entities/PavilionRequest" },
       "description": "Funeral pavilion permit requests."
+    },
+    "/fire_relief_requests/{reqId}": {
+      "schema": { "$ref": "#/entities/FireReliefRequest" },
+      "description": "Fire disaster relief assistance records (แบบ อค.02)."
     },
     "/notifications/{notifId}": {
       "schema": { "$ref": "#/entities/NotificationItem" },

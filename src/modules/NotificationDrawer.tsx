@@ -16,6 +16,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   loan: 'ยืม-คืนพัสดุ',
   pavilion: 'ศาลาสวดอภิธรรม',
   repair: 'แจ้งซ่อม',
+  fire_relief: 'สงเคราะห์เพลิงไหม้ (อค.02)',
 };
 
 export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ open, onClose }) => {

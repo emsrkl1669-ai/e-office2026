@@ -23,6 +23,7 @@ import { auth, db, googleProvider, handleFirestoreError, OperationType } from '.
 import {
   AppSettings,
   EquipmentLoan,
+  FireReliefRequest,
   InventoryItem,
   LeaveRequest,
   NotificationCategory,
@@ -69,6 +70,7 @@ interface CachedState {
   vehicleInspections: VehicleInspection[];
   repairs: RepairRequest[];
   pavilionRequests: PavilionRequest[];
+  fireReliefRequests: FireReliefRequest[];
   notifications: NotificationItem[];
   settings: AppSettings;
 }
@@ -87,6 +89,7 @@ function getDefaultCache(): CachedState {
     vehicleInspections: [],
     repairs: [],
     pavilionRequests: [],
+    fireReliefRequests: [],
     notifications: [],
     settings: DEFAULT_APP_SETTINGS,
   };
@@ -479,6 +482,7 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     subscribeCol('vehicle_inspections', 'vehicleInspections');
     subscribeCol('repairs', 'repairs');
     subscribeCol('pavilion_requests', 'pavilionRequests');
+    subscribeCol('fire_relief_requests', 'fireReliefRequests');
     subscribeCol('notifications', 'notifications');
 
     unsubs.push(
@@ -640,6 +644,7 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       vehicle_inspections: 'vehicleInspections',
       repairs: 'repairs',
       pavilion_requests: 'pavilionRequests',
+      fire_relief_requests: 'fireReliefRequests',
       notifications: 'notifications',
     };
     return map[colName] || null;

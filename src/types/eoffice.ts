@@ -245,6 +245,68 @@ export interface PavilionRequest {
   updatedAt?: string;
 }
 
+export interface FireReliefVictim {
+  rowNo: number;
+  houseNumber: string;
+  fullName: string;
+  damageType: 'full' | 'partial' | 'deceased' | 'other';
+  maleCount: number;
+  femaleCount: number;
+  boyCount: number;
+  girlCount: number;
+  totalCount: number;
+  assistanceDetail: string;
+  receiverName: string;
+}
+
+export interface FireReliefAttachment {
+  key: string;
+  label: string;
+  caseGroup: 'damaged' | 'deceased';
+  required: boolean;
+  verified: boolean;
+  fileName?: string;
+  fileData?: string;
+}
+
+export interface FireReliefRequest {
+  id: string;
+  orgId: string;
+  docNumber: string; // e.g. อค.02-69/001
+  incidentDate: string;
+  incidentTime?: string;
+  incidentLocation: string;
+  certifiedDate?: string;
+  victims: FireReliefVictim[];
+  fullDamageCases: number;
+  fullDamageRate: number;
+  partialDamageCases: number;
+  partialDamageRate: number;
+  deceasedCases?: number;
+  deceasedRate?: number;
+  riceBagsPerCase: number;
+  riceBagTotal: number;
+  riceBagPrice: number;
+  waterPacksPerCase: number;
+  waterPackTotal: number;
+  waterPackPrice: number;
+  blanketsPerCase: number;
+  blanketTotal: number;
+  blanketPrice: number;
+  extraReliefNote?: string;
+  extraReliefValue?: number;
+  totalValue: number;
+  cashDisbursed: number;
+  attachments?: FireReliefAttachment[];
+  notes?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  recorderName?: string;
+  approverSignature?: ElectronicSignature;
+  createdBy: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export type NotificationCategory =
   | 'incoming'
   | 'outgoing'
@@ -252,7 +314,8 @@ export type NotificationCategory =
   | 'approval'
   | 'loan'
   | 'pavilion'
-  | 'repair';
+  | 'repair'
+  | 'fire_relief';
 
 export interface NotificationItem {
   id: string;
@@ -284,5 +347,6 @@ export type ModuleKey =
   | 'fleet'
   | 'repair'
   | 'pavilion'
+  | 'fire_relief'
   | 'reports'
   | 'admin';

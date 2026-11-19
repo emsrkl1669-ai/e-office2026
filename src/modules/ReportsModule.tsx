@@ -19,7 +19,8 @@ type ReportKey =
   | 'inventory'
   | 'repairs'
   | 'vehicles'
-  | 'pavilion';
+  | 'pavilion'
+  | 'fire_relief';
 
 const REPORT_DEFS: { key: ReportKey; title: string; subtitle: string }[] = [
   { key: 'incoming', title: 'ทะเบียนหนังสือรับ', subtitle: 'สรุปรายการหนังสือเข้าและหน่วยงานต้นทาง' },
@@ -30,6 +31,7 @@ const REPORT_DEFS: { key: ReportKey; title: string; subtitle: string }[] = [
   { key: 'repairs', title: 'รายงานการซ่อม', subtitle: 'สรุปงานแจ้งซ่อม 4 หมวดและประมาณการค่าใช้จ่าย' },
   { key: 'vehicles', title: 'รายงานรถพยาบาล', subtitle: 'สถานะรถพยาบาล/กู้ภัย และผลตรวจสภาพ 12 รายการ' },
   { key: 'pavilion', title: 'รายงานการใช้ศาลาสวดอภิธรรม', subtitle: 'สถิติคำขอใช้ศาลา กำหนดการ และสถานะอนุมัติ' },
+  { key: 'fire_relief', title: 'รายงานสงเคราะห์เพลิงไหม้ (อค.02)', subtitle: 'สรุปเหตุเพลิงไหม้ ผู้ประสบภัย และยอดเงิน/สิ่งของสงเคราะห์' },
 ];
 
 export const ReportsModule: React.FC = () => {
@@ -44,6 +46,7 @@ export const ReportsModule: React.FC = () => {
     vehicles,
     repairs,
     pavilionRequests,
+    fireReliefRequests,
     openPrintPreview,
   } = useEOffice();
 
@@ -153,6 +156,16 @@ export const ReportsModule: React.FC = () => {
           วันออก: formatThaiDate(p.checkOutDate),
           สถานะ: p.status,
         }));
+      case 'fire_relief':
+        return fireReliefRequests.map((f) => ({
+          เลขที่แบบ: f.docNumber,
+          วันที่เกิดเหตุ: formatThaiDate(f.incidentDate),
+          สถานที่เกิดเหตุ: f.incidentLocation,
+          จำนวนผู้ประสบภัย: (f.victims || []).reduce((s, v) => s + Number(v.totalCount || 0), 0),
+          มูลค่ารวมบาท: f.totalValue,
+          เบิกเงินสดบาท: f.cashDisbursed,
+          สถานะ: f.status,
+        }));
     }
   };
 
@@ -201,7 +214,7 @@ export const ReportsModule: React.FC = () => {
     <div className="space-y-5">
       <div>
         <h2 className="font-display text-lg font-semibold text-slate-900">
-          รายงานและการส่งออกข้อมูล (8 รายงานหลัก)
+          รายงานและการส่งออกข้อมูล (9 รายงานหลัก)
         </h2>
         <p className="text-xs text-slate-500 mt-0.5">
           รองรับการส่งออก PDF, Excel (.xlsx), CSV UTF-8, Google Sheets, Google Docs และ Print A4

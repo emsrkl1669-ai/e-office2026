@@ -6,6 +6,7 @@ import {
   FileInput,
   FileOutput,
   Flame,
+  FlameKindling,
   Package,
   Wrench,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     vehicles,
     repairs,
     pavilionRequests,
+    fireReliefRequests,
   } = useEOffice();
 
   const pendingLeaves = leaveRequests.filter(
@@ -212,6 +214,25 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                 className="text-xs font-medium text-blue-800 hover:underline whitespace-nowrap"
               >
                 จัดการศาลา
+              </button>
+            </div>
+
+            <div className="px-5 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FlameKindling className="w-4 h-4 text-red-700" />
+                <div>
+                  <p className="text-sm font-medium text-slate-900">อนุเคราะห์ผู้ประสบเหตุเพลิงไหม้ (อค.02)</p>
+                  <p className="text-xs text-slate-500">
+                    บันทึกเหตุการณ์ {fireReliefRequests.length} รายการ
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate('fire_relief')}
+                className="text-xs font-medium text-blue-800 hover:underline whitespace-nowrap"
+              >
+                จัดการ อค.02
               </button>
             </div>
 
