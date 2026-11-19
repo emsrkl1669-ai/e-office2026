@@ -743,8 +743,8 @@ export const FireReliefModule: React.FC = () => {
         <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px;line-height:1.28;margin-bottom:7px;">
           <colgroup>
             <col style="width:5%;" />
-            <col style="width:9%;" />
-            <col style="width:27%;" />
+            <col style="width:7%;" />
+            <col style="width:30%;" />
             <col style="width:2.5%;" />
             <col style="width:2.5%;" />
             <col style="width:2.5%;" />
@@ -756,7 +756,7 @@ export const FireReliefModule: React.FC = () => {
           <thead>
             <tr style="background:#f1f5f9;color:#0f2744;">
               <th style="padding:4px 2px;border:1px solid #334155;text-align:center;font-weight:700;">ลำดับ</th>
-              <th style="padding:4px 3px;border:1px solid #334155;text-align:center;font-weight:700;">บ้านเลขที่</th>
+              <th style="padding:4px 2px;border:1px solid #334155;text-align:center;font-weight:700;">บ้านเลขที่</th>
               <th style="padding:4px 6px;border:1px solid #334155;text-align:left;font-weight:700;">ชื่อ - สกุล</th>
               <th style="padding:4px 1px;border:1px solid #334155;text-align:center;font-weight:700;white-space:nowrap;font-size:10px;">ช.</th>
               <th style="padding:4px 1px;border:1px solid #334155;text-align:center;font-weight:700;white-space:nowrap;font-size:10px;">ญ.</th>
