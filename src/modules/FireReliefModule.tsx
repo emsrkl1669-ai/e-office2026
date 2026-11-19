@@ -47,28 +47,154 @@ function formatCurrency(val: number): string {
   });
 }
 
-function formatLongThaiDate(dateStr?: string): string {
-  if (!dateStr) return '....................................';
+const THAI_WEEKDAYS = [
+  'วันอาทิตย์',
+  'วันจันทร์',
+  'วันอังคาร',
+  'วันพุธ',
+  'วันพฤหัสบดี',
+  'วันศุกร์',
+  'วันเสาร์',
+];
+
+const THAI_MONTHS = [
+  'มกราคม',
+  'กุมภาพันธ์',
+  'มีนาคม',
+  'เมษายน',
+  'พฤษภาคม',
+  'มิถุนายน',
+  'กรกฎาคม',
+  'สิงหาคม',
+  'กันยายน',
+  'ตุลาคม',
+  'พฤศจิกายน',
+  'ธันวาคม',
+];
+
+function parseIsoDateParts(dateStr?: string): { year: number; month: number; day: number } | null {
+  if (!dateStr) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr.trim());
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (year > 1900 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return { year, month, day };
+    }
+  }
   const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString('th-TH', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  if (Number.isNaN(d.getTime())) return null;
+  return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
+}
+
+function daysInMonth(yearAd: number, month1To12: number): number {
+  return new Date(yearAd, month1To12, 0).getDate();
+}
+
+function formatLongThaiDate(dateStr?: string): string {
+  const parts = parseIsoDateParts(dateStr);
+  if (!parts) return dateStr || '....................................';
+  const d = new Date(parts.year, parts.month - 1, parts.day);
+  const weekday = THAI_WEEKDAYS[d.getDay()];
+  const monthName = THAI_MONTHS[parts.month - 1];
+  const beYear = parts.year + 543;
+  return `${weekday} ที่ ${parts.day} เดือน${monthName} พ.ศ. ${beYear}`;
 }
 
 function formatShortLongThaiDate(dateStr?: string): string {
-  if (!dateStr) return '................................';
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString('th-TH', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  const parts = parseIsoDateParts(dateStr);
+  if (!parts) return dateStr || '................................';
+  const monthName = THAI_MONTHS[parts.month - 1];
+  const beYear = parts.year + 543;
+  return `${parts.day} ${monthName} พ.ศ. ${beYear}`;
 }
+
+interface ThaiBeDateInputProps {
+  value: string;
+  onChange: (isoDate: string) => void;
+  required?: boolean;
+  labelPrefix: string;
+}
+
+const ThaiBeDateInput: React.FC<ThaiBeDateInputProps> = ({
+  value,
+  onChange,
+  required,
+  labelPrefix,
+}) => {
+  const now = new Date();
+  const parsed = parseIsoDateParts(value);
+  const currentAdYear = parsed?.year ?? now.getFullYear();
+  const currentMonth = parsed?.month ?? now.getMonth() + 1;
+  const currentDay = parsed?.day ?? now.getDate();
+  const currentBeYear = currentAdYear + 543;
+
+  const baseBeYear = now.getFullYear() + 543;
+  const minBeYear = Math.min(baseBeYear - 10, currentBeYear);
+  const maxBeYear = Math.max(baseBeYear + 5, currentBeYear);
+  const beYears: number[] = [];
+  for (let y = maxBeYear; y >= minBeYear; y -= 1) {
+    beYears.push(y);
+  }
+
+  const maxDay = daysInMonth(currentAdYear, currentMonth);
+  const dayOptions = Array.from({ length: maxDay }, (_, i) => i + 1);
+
+  const emitDate = (nextDay: number, nextMonth: number, nextBeYear: number) => {
+    const nextAdYear = nextBeYear - 543;
+    const clampedDay = Math.min(nextDay, daysInMonth(nextAdYear, nextMonth));
+    const iso = `${String(nextAdYear).padStart(4, '0')}-${String(nextMonth).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
+    onChange(iso);
+  };
+
+  return (
+    <div className="grid grid-cols-12 gap-1.5">
+      <select
+        aria-label={`${labelPrefix} - วัน`}
+        required={required}
+        value={parsed ? currentDay : ''}
+        onChange={(e) => emitDate(Number(e.target.value), currentMonth, currentBeYear)}
+        className="col-span-3 h-10 px-1.5 text-sm bg-white border border-slate-300 rounded-lg tabular-nums"
+      >
+        {!parsed && <option value="">วัน</option>}
+        {dayOptions.map((d) => (
+          <option key={d} value={d}>
+            {d}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label={`${labelPrefix} - เดือน`}
+        required={required}
+        value={parsed ? currentMonth : ''}
+        onChange={(e) => emitDate(currentDay, Number(e.target.value), currentBeYear)}
+        className="col-span-5 h-10 px-1.5 text-sm bg-white border border-slate-300 rounded-lg"
+      >
+        {!parsed && <option value="">เดือน</option>}
+        {THAI_MONTHS.map((m, idx) => (
+          <option key={m} value={idx + 1}>
+            {m}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label={`${labelPrefix} - พ.ศ.`}
+        required={required}
+        value={parsed ? currentBeYear : ''}
+        onChange={(e) => emitDate(currentDay, currentMonth, Number(e.target.value))}
+        className="col-span-4 h-10 px-1.5 text-sm bg-white border border-slate-300 rounded-lg tabular-nums"
+      >
+        {!parsed && <option value="">พ.ศ.</option>}
+        {beYears.map((y) => (
+          <option key={y} value={y}>
+            พ.ศ. {y}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
 
 function createEmptyVictim(rowNo: number): FireReliefVictim {
   return {
@@ -873,7 +999,7 @@ export const FireReliefModule: React.FC = () => {
                       <td className="py-3 px-4">
                         <div className="font-medium text-slate-900">{req.incidentLocation}</div>
                         <div className="text-xs text-slate-500 tabular-nums">
-                          {formatThaiDate(req.incidentDate)}
+                          {formatShortLongThaiDate(req.incidentDate)}
                           {req.incidentTime ? ` เวลา ${req.incidentTime} น.` : ''}
                         </div>
                       </td>
@@ -991,9 +1117,9 @@ export const FireReliefModule: React.FC = () => {
 
       {/* Create / Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-5xl max-h-[92vh] overflow-y-auto">
-            <div className="sticky top-0 z-10 bg-white px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-[95vw] xl:max-w-[1400px] max-h-[92vh] overflow-y-auto">
+            <div className="sticky top-0 z-10 bg-white px-5 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between">
               <div>
                 <h3 className="font-display text-base font-semibold text-slate-900">
                   {editingReq
@@ -1013,27 +1139,26 @@ export const FireReliefModule: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 space-y-6">
+            <form onSubmit={handleSubmit} className="w-full p-5 sm:p-6 space-y-6">
               {/* Section 1: Incident Info */}
               <div className="space-y-4">
                 <h4 className="font-display text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2">
                   ส่วนที่ 1 · ข้อมูลเหตุเพลิงไหม้ (หัวแบบ อค.02)
                 </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <div>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  <div className="md:col-span-4">
                     <label className="block text-xs font-medium text-slate-700 mb-1">
-                      วันที่เกิดเหตุ
+                      วันที่เกิดเหตุ (วัน / เดือน / พ.ศ.)
                     </label>
-                    <input
-                      type="date"
-                      required
+                    <ThaiBeDateInput
                       value={incidentDate}
-                      onChange={(e) => setIncidentDate(e.target.value)}
-                      className="w-full h-10 px-3 text-sm border border-slate-300 rounded-lg"
+                      onChange={setIncidentDate}
+                      required
+                      labelPrefix="วันที่เกิดเหตุ"
                     />
                   </div>
-                  <div>
+                  <div className="md:col-span-2">
                     <label className="block text-xs font-medium text-slate-700 mb-1">
                       เวลาเกิดเหตุ (น.)
                     </label>
@@ -1045,18 +1170,17 @@ export const FireReliefModule: React.FC = () => {
                       className="w-full h-10 px-3 text-sm border border-slate-300 rounded-lg"
                     />
                   </div>
-                  <div>
+                  <div className="md:col-span-4">
                     <label className="block text-xs font-medium text-slate-700 mb-1">
-                      ลงวันที่รับรอง
+                      ลงวันที่รับรอง (วัน / เดือน / พ.ศ.)
                     </label>
-                    <input
-                      type="date"
+                    <ThaiBeDateInput
                       value={certifiedDate}
-                      onChange={(e) => setCertifiedDate(e.target.value)}
-                      className="w-full h-10 px-3 text-sm border border-slate-300 rounded-lg"
+                      onChange={setCertifiedDate}
+                      labelPrefix="ลงวันที่รับรอง"
                     />
                   </div>
-                  <div>
+                  <div className="md:col-span-2">
                     <label className="block text-xs font-medium text-slate-700 mb-1">
                       ผู้บันทึกรายงาน
                     </label>
