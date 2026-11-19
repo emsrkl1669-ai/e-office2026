@@ -50,7 +50,7 @@ export function exportToGoogleDocsFile(
   const pageCss =
     orientation === 'landscape'
       ? '@page { size: A4 landscape; mso-page-orientation: landscape; margin: 1.0cm 1.2cm; }'
-      : '@page { size: A4 portrait; margin: 1.0cm 1.26cm; }';
+      : '@page { size: A4 portrait; margin: 1.0cm 1.05cm; }';
   const htmlDoc = `
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word"

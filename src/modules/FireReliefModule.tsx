@@ -744,12 +744,12 @@ export const FireReliefModule: React.FC = () => {
           <colgroup>
             <col style="width:5%;" />
             <col style="width:9%;" />
-            <col style="width:25%;" />
-            <col style="width:3.5%;" />
-            <col style="width:3.5%;" />
-            <col style="width:4.25%;" />
-            <col style="width:4.25%;" />
-            <col style="width:4.5%;" />
+            <col style="width:27%;" />
+            <col style="width:2.5%;" />
+            <col style="width:2.5%;" />
+            <col style="width:2.5%;" />
+            <col style="width:2.5%;" />
+            <col style="width:2.5%;" />
             <col style="width:25%;" />
             <col style="width:16%;" />
           </colgroup>
@@ -758,11 +758,11 @@ export const FireReliefModule: React.FC = () => {
               <th style="padding:4px 2px;border:1px solid #334155;text-align:center;font-weight:700;">ลำดับ</th>
               <th style="padding:4px 3px;border:1px solid #334155;text-align:center;font-weight:700;">บ้านเลขที่</th>
               <th style="padding:4px 6px;border:1px solid #334155;text-align:left;font-weight:700;">ชื่อ - สกุล</th>
-              <th style="padding:4px 2px;border:1px solid #334155;text-align:center;font-weight:700;">ช.</th>
-              <th style="padding:4px 2px;border:1px solid #334155;text-align:center;font-weight:700;">ญ.</th>
-              <th style="padding:4px 2px;border:1px solid #334155;text-align:center;font-weight:700;">ด.ช.</th>
-              <th style="padding:4px 2px;border:1px solid #334155;text-align:center;font-weight:700;">ด.ญ.</th>
-              <th style="padding:4px 2px;border:1px solid #334155;text-align:center;font-weight:700;">รวม</th>
+              <th style="padding:4px 1px;border:1px solid #334155;text-align:center;font-weight:700;white-space:nowrap;font-size:10px;">ช.</th>
+              <th style="padding:4px 1px;border:1px solid #334155;text-align:center;font-weight:700;white-space:nowrap;font-size:10px;">ญ.</th>
+              <th style="padding:4px 1px;border:1px solid #334155;text-align:center;font-weight:700;white-space:nowrap;font-size:10px;">ด.ช.</th>
+              <th style="padding:4px 1px;border:1px solid #334155;text-align:center;font-weight:700;white-space:nowrap;font-size:10px;">ด.ญ.</th>
+              <th style="padding:4px 1px;border:1px solid #334155;text-align:center;font-weight:700;white-space:nowrap;font-size:10px;">รวม</th>
               <th style="padding:4px 6px;border:1px solid #334155;text-align:left;font-weight:700;">ความช่วยเหลือ</th>
               <th style="padding:4px 5px;border:1px solid #334155;text-align:center;font-weight:700;">ผู้รับ (ลงชื่อ)</th>
             </tr>
@@ -901,7 +901,7 @@ export const FireReliefModule: React.FC = () => {
   <style>
     @page {
       size: A4 portrait;
-      margin: 9mm 12.6mm;
+      margin: 9mm 10.5mm;
     }
     * {
       box-sizing: border-box;
@@ -941,7 +941,7 @@ export const FireReliefModule: React.FC = () => {
       width: 210mm;
       min-height: 297mm;
       margin: 16px auto;
-      padding: 9mm 6%;
+      padding: 9mm 5%;
       background: #ffffff;
       box-shadow: 0 4px 20px rgba(15, 23, 42, 0.12);
     }
