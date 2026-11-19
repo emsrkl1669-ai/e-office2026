@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit3, KeyRound, Plus, Shield, Trash2, UserCheck, UserX, X } from 'lucide-react';
+import { Download, Edit3, HardDrive, KeyRound, Plus, Shield, Trash2, Upload, UserCheck, UserX, X } from 'lucide-react';
 import { useEOffice } from '../context/EOfficeContext';
 import { ORG_ID } from '../data/seedData';
 import { StaffMember, UserRole } from '../types/eoffice';
@@ -16,6 +16,8 @@ export const AdminUsersModule: React.FC = () => {
     saveStaffMember,
     deleteStaffMember,
     updateAppSettings,
+    exportBackupJson,
+    importBackupJson,
   } = useEOffice();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -186,6 +188,52 @@ export const AdminUsersModule: React.FC = () => {
           >
             ตรงถึงผู้จัดการ (1 ขั้นตอน)
           </button>
+        </div>
+      </div>
+
+      {/* Data Persistence & Backup Controls */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <HardDrive className="w-5 h-5 text-emerald-700 mt-0.5 shrink-0" />
+          <div>
+            <h3 className="font-display text-sm font-semibold text-slate-900">
+              สำรองและกู้คืนข้อมูลถาวร (Persistent Data Backup)
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              ข้อมูลทุกโมดูลถูกจัดเก็บถาวรใน Volume (/app/data) และฐานข้อมูลกลาง สามารถสำรองหรือกู้คืนไฟล์ JSON ได้ทุกเมื่อ
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => exportBackupJson()}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 whitespace-nowrap"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-900" />
+            สำรองข้อมูล (.json)
+          </button>
+          <label className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-emerald-700 rounded-lg hover:bg-emerald-800 cursor-pointer whitespace-nowrap">
+            <Upload className="w-3.5 h-3.5" />
+            กู้คืนข้อมูล (.json)
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const text = await file.text();
+                const res = await importBackupJson(text);
+                if (res.ok) {
+                  showNotice(`กู้คืนข้อมูลสำเร็จ (${res.restoredCount} รายการ)`);
+                } else {
+                  showNotice(res.error || 'กู้คืนข้อมูลไม่สำเร็จ');
+                }
+                e.target.value = '';
+              }}
+            />
+          </label>
         </div>
       </div>
 

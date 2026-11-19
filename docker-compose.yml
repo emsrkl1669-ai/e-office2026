@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATA_DIR=/app/data
+    volumes:
+      # เก็บข้อมูลไว้ใน Named Volume (ปลอดภัยเมื่อสร้าง Container ใหม่)
+      - app_data:/app/data
+      # หรือผูกโฟลเดอร์บนเครื่องโดยตรง (Bind Mount)
+      # - ./data:/app/data
+    restart: unless-stopped
+
+volumes:
+  app_data:

@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import {
   CheckCircle2,
   Edit3,
+  FileCode2,
   FileSpreadsheet,
   FileText,
   FlameKindling,
@@ -557,7 +558,7 @@ export const FireReliefModule: React.FC = () => {
     );
   };
 
-  const buildFormHtml = (req: FireReliefRequest): string => {
+  const buildFormHtml = (req: FireReliefRequest, logoSrc = FOUNDATION_LOGO_PATH): string => {
     const sums = (req.victims || []).reduce(
       (acc, v) => ({
         male: acc.male + Number(v.maleCount || 0),
@@ -578,16 +579,16 @@ export const FireReliefModule: React.FC = () => {
       .map(
         (v, idx) => `
         <tr>
-          <td style="padding:5px 6px;border:1px solid #334155;text-align:center;">${idx + 1}</td>
-          <td style="padding:5px 6px;border:1px solid #334155;text-align:center;">${escapeHtml(v.houseNumber || '-')}</td>
-          <td style="padding:5px 6px;border:1px solid #334155;">${escapeHtml(v.fullName || `(${DAMAGE_LABELS[v.damageType]})`)}</td>
-          <td style="padding:5px 6px;border:1px solid #334155;text-align:center;">${v.maleCount || 0}</td>
-          <td style="padding:5px 6px;border:1px solid #334155;text-align:center;">${v.femaleCount || 0}</td>
-          <td style="padding:5px 6px;border:1px solid #334155;text-align:center;">${v.boyCount || 0}</td>
-          <td style="padding:5px 6px;border:1px solid #334155;text-align:center;">${v.girlCount || 0}</td>
-          <td style="padding:5px 6px;border:1px solid #334155;text-align:center;font-weight:700;">${v.totalCount || 0}</td>
-          <td style="padding:5px 6px;border:1px solid #334155;">${escapeHtml(v.assistanceDetail || '-')}</td>
-          <td style="padding:5px 6px;border:1px solid #334155;text-align:center;">${escapeHtml(v.receiverName || '')}</td>
+          <td style="padding:5px 4px;border:1px solid #334155;text-align:center;vertical-align:middle;">${idx + 1}</td>
+          <td style="padding:5px 4px;border:1px solid #334155;text-align:center;vertical-align:middle;word-wrap:break-word;">${escapeHtml(v.houseNumber || '-')}</td>
+          <td style="padding:5px 6px;border:1px solid #334155;text-align:left;vertical-align:middle;word-wrap:break-word;">${escapeHtml(v.fullName || `(${DAMAGE_LABELS[v.damageType]})`)}</td>
+          <td style="padding:5px 3px;border:1px solid #334155;text-align:center;vertical-align:middle;font-variant-numeric:tabular-nums;">${v.maleCount || 0}</td>
+          <td style="padding:5px 3px;border:1px solid #334155;text-align:center;vertical-align:middle;font-variant-numeric:tabular-nums;">${v.femaleCount || 0}</td>
+          <td style="padding:5px 3px;border:1px solid #334155;text-align:center;vertical-align:middle;font-variant-numeric:tabular-nums;">${v.boyCount || 0}</td>
+          <td style="padding:5px 3px;border:1px solid #334155;text-align:center;vertical-align:middle;font-variant-numeric:tabular-nums;">${v.girlCount || 0}</td>
+          <td style="padding:5px 3px;border:1px solid #334155;text-align:center;vertical-align:middle;font-weight:700;font-variant-numeric:tabular-nums;background:#f8fafc;">${v.totalCount || 0}</td>
+          <td style="padding:5px 6px;border:1px solid #334155;text-align:left;vertical-align:middle;word-wrap:break-word;">${escapeHtml(v.assistanceDetail || '-')}</td>
+          <td style="padding:5px 6px;border:1px solid #334155;text-align:center;vertical-align:middle;height:26px;word-wrap:break-word;">${escapeHtml(v.receiverName || '')}</td>
         </tr>`
       )
       .join('');
@@ -604,144 +605,296 @@ export const FireReliefModule: React.FC = () => {
       ? formatShortLongThaiDate(req.certifiedDate)
       : req.approverSignature?.signedAt
         ? formatShortLongThaiDate(req.approverSignature.signedAt)
-        : '................................';
+        : '....................................';
 
     const sigImgHtml = req.approverSignature
-      ? `<img src="${req.approverSignature.dataUrl}" alt="ลายเซ็น" style="height:44px;max-width:150px;object-fit:contain;margin:4px auto;display:block;" />`
-      : `<div style="height:36px;"></div>`;
+      ? `<img src="${req.approverSignature.dataUrl}" alt="ลายเซ็น" style="height:44px;max-width:150px;object-fit:contain;margin:6px auto 4px auto;display:block;" />`
+      : `<div style="padding:20px 0 4px 0;font-size:11.5px;color:#64748b;">ลงชื่อ ....................................................</div>`;
 
     const shaHtml = req.approverSignature
-      ? `<div style="font-size:9.5px;font-family:monospace;color:#64748b;margin-top:3px;">SHA-256: ${escapeHtml(req.approverSignature.sha256.slice(0, 24))}...</div>`
+      ? `<div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:#64748b;margin-top:4px;">SHA-256: ${escapeHtml(req.approverSignature.sha256.slice(0, 24))}...</div>`
       : '';
 
     return `
-      <div class="keep-together" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <img src="${FOUNDATION_LOGO_PATH}" alt="${FOUNDATION_NAME}" style="width:54px;height:54px;object-fit:contain;" />
-          <div>
-            <div style="font-size:17px;font-weight:700;color:#0f2744;">${FOUNDATION_NAME}</div>
-            <div style="font-size:13px;color:#0f172a;margin-top:2px;">
-              เหตุเกิดเมื่อ ${escapeHtml(formatLongThaiDate(req.incidentDate))}${req.incidentTime ? ` เวลา ${escapeHtml(req.incidentTime)} น.` : ''}
-            </div>
-            <div style="font-size:13px;color:#0f172a;">
-              สถานที่เกิดเหตุ: ${escapeHtml(req.incidentLocation)}
-            </div>
-          </div>
-        </div>
-        <div style="text-align:right;white-space:nowrap;">
-          <div style="font-size:15px;font-weight:700;color:#0f2744;border:1px solid #0f2744;padding:3px 10px;border-radius:4px;">แบบ อค.02</div>
-          <div style="font-size:11.5px;font-family:monospace;color:#475569;margin-top:3px;">เลขที่ ${escapeHtml(req.docNumber)}</div>
-        </div>
-      </div>
-
-      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px;">
-        <thead>
-          <tr style="background:#f1f5f9;">
-            <th style="padding:5px 6px;border:1px solid #334155;text-align:center;width:40px;">ลำดับ</th>
-            <th style="padding:5px 6px;border:1px solid #334155;text-align:center;width:78px;">บ้านเลขที่</th>
-            <th style="padding:5px 6px;border:1px solid #334155;text-align:left;">ชื่อ - สกุล</th>
-            <th style="padding:5px 6px;border:1px solid #334155;text-align:center;width:32px;">ช.</th>
-            <th style="padding:5px 6px;border:1px solid #334155;text-align:center;width:32px;">ญ.</th>
-            <th style="padding:5px 6px;border:1px solid #334155;text-align:center;width:36px;">ด.ช.</th>
-            <th style="padding:5px 6px;border:1px solid #334155;text-align:center;width:36px;">ด.ญ.</th>
-            <th style="padding:5px 6px;border:1px solid #334155;text-align:center;width:40px;">รวม</th>
-            <th style="padding:5px 6px;border:1px solid #334155;text-align:left;">ความช่วยเหลือ</th>
-            <th style="padding:5px 6px;border:1px solid #334155;text-align:center;width:85px;">ผู้รับ</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${victimRowsHtml}
-          <tr style="background:#f8fafc;font-weight:700;">
-            <td colspan="3" style="padding:5px 8px;border:1px solid #334155;text-align:center;">รวมจำนวนผู้ประสบภัย</td>
-            <td style="padding:5px 6px;border:1px solid #334155;text-align:center;">${sums.male}</td>
-            <td style="padding:5px 6px;border:1px solid #334155;text-align:center;">${sums.female}</td>
-            <td style="padding:5px 6px;border:1px solid #334155;text-align:center;">${sums.boy}</td>
-            <td style="padding:5px 6px;border:1px solid #334155;text-align:center;">${sums.girl}</td>
-            <td style="padding:5px 6px;border:1px solid #334155;text-align:center;">${sums.total}</td>
-            <td colspan="2" style="padding:5px 8px;border:1px solid #334155;text-align:center;">ขอรับรองว่าเป็นความจริง</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="keep-together" style="display:grid;grid-template-columns:1.35fr 1fr;gap:16px;align-items:start;margin-bottom:10px;">
-        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <div class="ak02-form-sheet" style="font-family:'TH Sarabun New','Sarabun','Noto Sans Thai',sans-serif;color:#0f172a;font-size:12.5px;line-height:1.35;">
+        <!-- 1. ส่วนหัวเอกสาร -->
+        <table class="keep-together" style="width:100%;border-collapse:collapse;margin-bottom:9px;border-bottom:2px solid #0f2744;">
           <tr>
-            <td style="padding:4px 8px;border:1px solid #cbd5e1;">เสียหายทั้งหมดบริจาค ${req.fullDamageCases} รายๆละ ${Number(req.fullDamageRate).toLocaleString('th-TH')} บาท</td>
-            <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;width:100px;">${formatCurrency(fullAmt)}</td>
-          </tr>
-          <tr>
-            <td style="padding:4px 8px;border:1px solid #cbd5e1;">เสียหายบางส่วนบริจาค ${req.partialDamageCases} รายๆละ ${Number(req.partialDamageRate).toLocaleString('th-TH')} บาท</td>
-            <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;">${formatCurrency(partialAmt)}</td>
-          </tr>
-          ${
-            (req.deceasedCases || 0) > 0
-              ? `<tr>
-                  <td style="padding:4px 8px;border:1px solid #cbd5e1;">กรณีเสียชีวิตบริจาค ${req.deceasedCases} รายๆละ ${Number(req.deceasedRate || 0).toLocaleString('th-TH')} บาท</td>
-                  <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;">${formatCurrency(deadAmt)}</td>
-                </tr>`
-              : ''
-          }
-          <tr>
-            <td style="padding:4px 8px;border:1px solid #cbd5e1;">บริจาคเป็นข้าวสารรายละ ${req.riceBagsPerCase} ถุง จำนวน ${req.riceBagTotal} ถุงๆละ ${Number(req.riceBagPrice).toLocaleString('th-TH')} บาท</td>
-            <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;">${formatCurrency(riceAmt)}</td>
-          </tr>
-          <tr>
-            <td style="padding:4px 8px;border:1px solid #cbd5e1;">น้ำตราสิงห์รายละ ${req.waterPacksPerCase} แพค จำนวน ${req.waterPackTotal} แพคๆละ ${Number(req.waterPackPrice).toLocaleString('th-TH')} บาท</td>
-            <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;">${formatCurrency(waterAmt)}</td>
-          </tr>
-          <tr>
-            <td style="padding:4px 8px;border:1px solid #cbd5e1;">ผ้าห่มรายละ ${req.blanketsPerCase} ผืน จำนวน ${req.blanketTotal} ผืนๆละ ${Number(req.blanketPrice).toLocaleString('th-TH')} บาท</td>
-            <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;">${formatCurrency(blanketAmt)}</td>
-          </tr>
-          ${
-            extraAmt > 0 || req.extraReliefNote
-              ? `<tr>
-                  <td style="padding:4px 8px;border:1px solid #cbd5e1;">${escapeHtml(req.extraReliefNote || 'รายการช่วยเหลือเพิ่มเติม')}</td>
-                  <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;">${formatCurrency(extraAmt)}</td>
-                </tr>`
-              : ''
-          }
-          <tr style="background:#f8fafc;font-weight:700;">
-            <td style="padding:5px 8px;border:1px solid #334155;text-align:right;">มูลค่ารวม (บาท)</td>
-            <td style="padding:5px 8px;border:1px solid #334155;text-align:right;">${formatCurrency(req.totalValue)}</td>
-          </tr>
-          <tr style="background:#f1f5f9;font-weight:700;">
-            <td style="padding:5px 8px;border:1px solid #334155;text-align:right;">เบิกเงินสด (บาท)</td>
-            <td style="padding:5px 8px;border:1px solid #334155;text-align:right;">${formatCurrency(req.cashDisbursed)}</td>
+            <td style="width:66px;vertical-align:middle;padding:0 8px 8px 0;border:none;">
+              <img src="${escapeHtml(logoSrc)}" alt="${FOUNDATION_NAME}" onerror="this.style.display='none'" style="width:58px;height:58px;object-fit:contain;display:block;" />
+            </td>
+            <td style="vertical-align:middle;padding:0 10px 8px 4px;border:none;">
+              <div style="font-size:18px;font-weight:700;color:#0f2744;line-height:1.2;">${FOUNDATION_NAME}</div>
+              <div style="font-size:13px;font-weight:600;color:#1e293b;margin-top:1px;">รายงานการอนุเคราะห์ผู้ประสบเหตุอัคคีภัย</div>
+              <div style="font-size:12.5px;color:#0f172a;margin-top:2px;">
+                <strong>เหตุเกิดเมื่อ</strong> ${escapeHtml(formatLongThaiDate(req.incidentDate))}${req.incidentTime ? ` <strong>เวลา</strong> ${escapeHtml(req.incidentTime)} น.` : ''}
+              </div>
+              <div style="font-size:12.5px;color:#0f172a;">
+                <strong>สถานที่เกิดเหตุ :</strong> ${escapeHtml(req.incidentLocation)}
+              </div>
+            </td>
+            <td style="width:162px;vertical-align:top;text-align:right;padding:0 0 8px 0;border:none;">
+              <div style="display:inline-block;border:1.5px solid #0f2744;border-radius:4px;overflow:hidden;min-width:152px;text-align:center;">
+                <div style="background:#0f2744;color:#ffffff;font-size:14px;font-weight:700;padding:3px 10px;">แบบ อค.02</div>
+                <div style="background:#f8fafc;color:#0f172a;font-size:11.5px;font-weight:600;padding:4px 8px;border-top:1px solid #0f2744;white-space:nowrap;">
+                  เลขที่ ${escapeHtml(req.docNumber)}
+                </div>
+              </div>
+            </td>
           </tr>
         </table>
 
-        <div style="border:1px solid #cbd5e1;border-radius:6px;padding:10px 12px;text-align:center;">
-          <div style="font-size:12px;font-weight:600;color:#334155;">ขอรับรองว่าเป็นความจริง</div>
-          ${sigImgHtml}
-          <div style="font-size:12.5px;font-weight:600;color:#0f172a;">(${escapeHtml(req.approverSignature?.signerName || 'นางสาวศาตพร ภูมิโคกรักษ์')})</div>
-          <div style="font-size:11.5px;color:#475569;">${escapeHtml(req.approverSignature?.signerPosition || 'ผู้จัดการมูลนิธิร่วมกุศลสมุทรปราการ')}</div>
-          <div style="font-size:11.5px;color:#334155;margin-top:4px;">ลงวันที่ ${escapeHtml(certDateText)}</div>
-          ${shaHtml}
-        </div>
-      </div>
+        <!-- 2. ตารางรายชื่อผู้ประสบภัย -->
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:11.5px;line-height:1.32;margin-bottom:9px;">
+          <colgroup>
+            <col style="width:5%;" />
+            <col style="width:9%;" />
+            <col style="width:21%;" />
+            <col style="width:4.5%;" />
+            <col style="width:4.5%;" />
+            <col style="width:4.5%;" />
+            <col style="width:4.5%;" />
+            <col style="width:5%;" />
+            <col style="width:26%;" />
+            <col style="width:16%;" />
+          </colgroup>
+          <thead>
+            <tr style="background:#f1f5f9;color:#0f2744;">
+              <th style="padding:5px 3px;border:1px solid #334155;text-align:center;font-weight:700;">ลำดับ</th>
+              <th style="padding:5px 3px;border:1px solid #334155;text-align:center;font-weight:700;">บ้านเลขที่</th>
+              <th style="padding:5px 6px;border:1px solid #334155;text-align:left;font-weight:700;">ชื่อ - สกุล</th>
+              <th style="padding:5px 2px;border:1px solid #334155;text-align:center;font-weight:700;">ช.</th>
+              <th style="padding:5px 2px;border:1px solid #334155;text-align:center;font-weight:700;">ญ.</th>
+              <th style="padding:5px 2px;border:1px solid #334155;text-align:center;font-weight:700;">ด.ช.</th>
+              <th style="padding:5px 2px;border:1px solid #334155;text-align:center;font-weight:700;">ด.ญ.</th>
+              <th style="padding:5px 2px;border:1px solid #334155;text-align:center;font-weight:700;">รวม</th>
+              <th style="padding:5px 6px;border:1px solid #334155;text-align:left;font-weight:700;">ความช่วยเหลือ</th>
+              <th style="padding:5px 6px;border:1px solid #334155;text-align:center;font-weight:700;">ผู้รับ (ลงชื่อ)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${victimRowsHtml}
+            <tr style="background:#f8fafc;font-weight:700;color:#0f172a;">
+              <td colspan="3" style="padding:5px 8px;border:1px solid #334155;text-align:right;">รวมจำนวนผู้ประสบภัย</td>
+              <td style="padding:5px 3px;border:1px solid #334155;text-align:center;font-variant-numeric:tabular-nums;">${sums.male}</td>
+              <td style="padding:5px 3px;border:1px solid #334155;text-align:center;font-variant-numeric:tabular-nums;">${sums.female}</td>
+              <td style="padding:5px 3px;border:1px solid #334155;text-align:center;font-variant-numeric:tabular-nums;">${sums.boy}</td>
+              <td style="padding:5px 3px;border:1px solid #334155;text-align:center;font-variant-numeric:tabular-nums;">${sums.girl}</td>
+              <td style="padding:5px 3px;border:1px solid #334155;text-align:center;font-variant-numeric:tabular-nums;background:#e2e8f0;color:#0f2744;">${sums.total}</td>
+              <td colspan="2" style="padding:5px 8px;border:1px solid #334155;text-align:center;font-weight:600;">รวมผู้ประสบภัยทั้งสิ้น ${sums.total} ราย</td>
+            </tr>
+          </tbody>
+        </table>
 
-      <div class="keep-together" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:11.5px;border-top:1px solid #cbd5e1;padding-top:8px;">
-        <div>
-          <div style="font-weight:700;color:#0f2744;margin-bottom:2px;">หมายเหตุ : หลักฐานขอรับการสงเคราะห์ กรณีเสียหาย</div>
-          ${FIRE_RELIEF_DAMAGED_NOTES.map((line) => `<div>${escapeHtml(line)}</div>`).join('')}
-        </div>
-        <div>
-          <div style="font-weight:700;color:#0f2744;margin-bottom:2px;">หมายเหตุ : หลักฐานขอรับการสงเคราะห์ กรณีเสียชีวิต</div>
-          ${FIRE_RELIEF_DECEASED_NOTES.map((line) => `<div>${escapeHtml(line)}</div>`).join('')}
-        </div>
+        <!-- 3. ตารางสรุปยอดเงินและสิ่งของ + ส่วนลงนาม -->
+        <table class="keep-together" style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:9px;">
+          <tr>
+            <td style="width:61%;vertical-align:top;padding:0 12px 0 0;border:none;">
+              <table style="width:100%;border-collapse:collapse;font-size:11.5px;line-height:1.35;">
+                <thead>
+                  <tr style="background:#f1f5f9;color:#0f2744;">
+                    <th style="padding:4px 8px;border:1px solid #64748b;text-align:left;font-weight:700;">รายการบริจาคและสิ่งของบรรเทาทุกข์</th>
+                    <th style="padding:4px 8px;border:1px solid #64748b;text-align:right;width:96px;font-weight:700;">จำนวนเงิน (บาท)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="padding:4px 8px;border:1px solid #cbd5e1;">เสียหายทั้งหมดบริจาค ${req.fullDamageCases} รายๆ ละ ${Number(req.fullDamageRate).toLocaleString('th-TH')} บาท</td>
+                    <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;">${formatCurrency(fullAmt)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:4px 8px;border:1px solid #cbd5e1;">เสียหายบางส่วนบริจาค ${req.partialDamageCases} รายๆ ละ ${Number(req.partialDamageRate).toLocaleString('th-TH')} บาท</td>
+                    <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;">${formatCurrency(partialAmt)}</td>
+                  </tr>
+                  ${
+                    (req.deceasedCases || 0) > 0
+                      ? `<tr>
+                          <td style="padding:4px 8px;border:1px solid #cbd5e1;">กรณีเสียชีวิตบริจาค ${req.deceasedCases} รายๆ ละ ${Number(req.deceasedRate || 0).toLocaleString('th-TH')} บาท</td>
+                          <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;">${formatCurrency(deadAmt)}</td>
+                        </tr>`
+                      : ''
+                  }
+                  <tr>
+                    <td style="padding:4px 8px;border:1px solid #cbd5e1;">บริจาคเป็นข้าวสารรายละ ${req.riceBagsPerCase} ถุง จำนวน ${req.riceBagTotal} ถุงๆ ละ ${Number(req.riceBagPrice).toLocaleString('th-TH')} บาท</td>
+                    <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;">${formatCurrency(riceAmt)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:4px 8px;border:1px solid #cbd5e1;">น้ำตราสิงห์รายละ ${req.waterPacksPerCase} แพค จำนวน ${req.waterPackTotal} แพคๆ ละ ${Number(req.waterPackPrice).toLocaleString('th-TH')} บาท</td>
+                    <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;">${formatCurrency(waterAmt)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:4px 8px;border:1px solid #cbd5e1;">ผ้าห่มรายละ ${req.blanketsPerCase} ผืน จำนวน ${req.blanketTotal} ผืนๆ ละ ${Number(req.blanketPrice).toLocaleString('th-TH')} บาท</td>
+                    <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;">${formatCurrency(blanketAmt)}</td>
+                  </tr>
+                  ${
+                    extraAmt > 0 || req.extraReliefNote
+                      ? `<tr>
+                          <td style="padding:4px 8px;border:1px solid #cbd5e1;">${escapeHtml(req.extraReliefNote || 'รายการช่วยเหลือเพิ่มเติม')}</td>
+                          <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;">${formatCurrency(extraAmt)}</td>
+                        </tr>`
+                      : ''
+                  }
+                  <tr style="background:#f8fafc;font-weight:700;color:#0f172a;">
+                    <td style="padding:5px 8px;border:1px solid #334155;text-align:right;font-weight:700;">มูลค่ารวม (บาท)</td>
+                    <td style="padding:5px 8px;border:1px solid #334155;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;">${formatCurrency(req.totalValue)}</td>
+                  </tr>
+                  <tr style="background:#f1f5f9;font-weight:700;color:#0f2744;">
+                    <td style="padding:5px 8px;border:1px solid #334155;text-align:right;font-weight:700;">เบิกเงินสด (บาท)</td>
+                    <td style="padding:5px 8px;border:1px solid #334155;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;">${formatCurrency(req.cashDisbursed)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+            <td style="width:39%;vertical-align:top;padding:0;border:none;">
+              <div style="border:1px solid #334155;border-radius:6px;padding:12px 10px;text-align:center;background:#ffffff;">
+                <div style="font-size:12.5px;font-weight:700;color:#0f2744;">ขอรับรองว่าเป็นความจริง</div>
+                ${sigImgHtml}
+                <div style="font-size:12.5px;font-weight:700;color:#0f172a;margin-top:2px;">(${escapeHtml(req.approverSignature?.signerName || 'นางสาวศาตพร ภูมิโคกรักษ์')})</div>
+                <div style="font-size:11.5px;color:#334155;margin-top:1px;">${escapeHtml(req.approverSignature?.signerPosition || 'ผู้จัดการมูลนิธิร่วมกุศลสมุทรปราการ')}</div>
+                <div style="font-size:11.5px;color:#0f172a;margin-top:6px;">ลงวันที่ ${escapeHtml(certDateText)}</div>
+                ${shaHtml}
+              </div>
+              ${
+                req.recorderName
+                  ? `<div style="margin-top:6px;text-align:right;font-size:11px;color:#475569;">ผู้บันทึกรายงาน: ${escapeHtml(req.recorderName)}</div>`
+                  : ''
+              }
+            </td>
+          </tr>
+        </table>
+
+        <!-- 4. หมายเหตุ 2 คอลัมน์ -->
+        <table class="keep-together" style="width:100%;border-collapse:collapse;table-layout:fixed;border-top:1.5px solid #334155;font-size:11px;line-height:1.38;">
+          <tr>
+            <td style="width:50%;vertical-align:top;padding:7px 10px 0 0;border:none;">
+              <div style="font-weight:700;color:#0f2744;margin-bottom:2px;">หมายเหตุ : หลักฐานขอรับการสงเคราะห์ กรณีเสียหาย</div>
+              ${FIRE_RELIEF_DAMAGED_NOTES.map((line) => `<div style="color:#1e293b;">${escapeHtml(line)}</div>`).join('')}
+            </td>
+            <td style="width:50%;vertical-align:top;padding:7px 0 0 10px;border:none;">
+              <div style="font-weight:700;color:#0f2744;margin-bottom:2px;">หมายเหตุ : หลักฐานขอรับการสงเคราะห์ กรณีเสียชีวิต</div>
+              ${FIRE_RELIEF_DECEASED_NOTES.map((line) => `<div style="color:#1e293b;">${escapeHtml(line)}</div>`).join('')}
+            </td>
+          </tr>
+        </table>
+        ${
+          req.notes
+            ? `<div style="margin-top:5px;font-size:11px;color:#334155;"><strong>บันทึกเพิ่มเติม:</strong> ${escapeHtml(req.notes)}</div>`
+            : ''
+        }
       </div>
-      ${
-        req.notes
-          ? `<div style="margin-top:6px;font-size:11.5px;color:#334155;"><strong>บันทึกเพิ่มเติม:</strong> ${escapeHtml(req.notes)}</div>`
-          : ''
-      }
     `;
+  };
+
+  const buildStandaloneHtmlDoc = (req: FireReliefRequest): string => {
+    const absoluteLogoUrl =
+      typeof window !== 'undefined' && FOUNDATION_LOGO_PATH.startsWith('/')
+        ? `${window.location.origin}${FOUNDATION_LOGO_PATH}`
+        : FOUNDATION_LOGO_PATH;
+    const bodyHtml = buildFormHtml(req, absoluteLogoUrl);
+    return `<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>แบบ อค.02 ${escapeHtml(req.docNumber)} - ${FOUNDATION_NAME}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 10mm 12mm;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #e2e8f0;
+      font-family: 'TH Sarabun New', 'Sarabun', 'Noto Sans Thai', sans-serif;
+      color: #0f172a;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .toolbar {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px;
+      background: #ffffff;
+      border-bottom: 1px solid #cbd5e1;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .toolbar button {
+      font-family: 'Sarabun', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 7px 16px;
+      border-radius: 6px;
+      border: none;
+      background: #0f2744;
+      color: #ffffff;
+      cursor: pointer;
+    }
+    .a4-page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 16px auto;
+      padding: 10mm 12mm;
+      background: #ffffff;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.12);
+    }
+    .keep-together {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    @media print {
+      body {
+        background: #ffffff;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .a4-page {
+        width: 100%;
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <button type="button" onclick="window.print()">พิมพ์ / บันทึก PDF (A4 แนวตั้ง)</button>
+  </div>
+  <main class="a4-page">
+    ${bodyHtml}
+  </main>
+</body>
+</html>`;
   };
 
   const handlePrintPdf = (req: FireReliefRequest) => {
     const html = buildFormHtml(req);
     openPrintPreview(`แบบ อค.02 อนุเคราะห์ผู้ประสบเหตุเพลิงไหม้ (${req.docNumber})`, `form_or_kor_02_${req.docNumber}`, html);
+  };
+
+  const handleDownloadHtml = (req: FireReliefRequest) => {
+    const fullHtml = buildStandaloneHtmlDoc(req);
+    const blob = new Blob(['\uFEFF' + fullHtml], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `แบบ_อค.02_${req.docNumber.replace(/[^\w\u0E00-\u0E7F-]/g, '_')}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const handleDownloadDoc = (req: FireReliefRequest) => {
@@ -881,7 +1034,7 @@ export const FireReliefModule: React.FC = () => {
             ระบบอนุเคราะห์ผู้ประสบเหตุเพลิงไหม้ (แบบ อค.02)
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            บันทึกรายชื่อผู้ประสบภัย คำนวณเงินสงเคราะห์และสิ่งของบรรเทาทุกข์ รองรับดาวน์โหลด Excel (.xlsx), Word/Docs (.doc) และสั่งพิมพ์ PDF (A4)
+            บันทึกรายชื่อผู้ประสบภัย คำนวณเงินสงเคราะห์และสิ่งของบรรเทาทุกข์ รองรับดาวน์โหลด Excel (.xlsx), Word/Docs (.doc), HTML (A4) และสั่งพิมพ์ PDF (A4)
           </p>
         </div>
         <button
@@ -1084,6 +1237,15 @@ export const FireReliefModule: React.FC = () => {
                           >
                             <FileText className="w-3.5 h-3.5" />
                             DOC
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadHtml(req)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-indigo-900 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100"
+                            title="ดาวน์โหลดไฟล์ HTML + CSS (A4 แนวตั้ง)"
+                          >
+                            <FileCode2 className="w-3.5 h-3.5" />
+                            HTML
                           </button>
                           <button
                             type="button"

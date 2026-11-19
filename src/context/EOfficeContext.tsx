@@ -146,6 +146,61 @@ function saveLocalCache(state: CachedState) {
   }
 }
 
+const PERSISTED_ARRAY_KEYS: (keyof Omit<CachedState, 'settings'>)[] = [
+  'staff',
+  'incomingDocs',
+  'outgoingDocs',
+  'leaveRequests',
+  'medicalItems',
+  'medicalLoans',
+  'kitchenItems',
+  'kitchenLoans',
+  'vehicles',
+  'vehicleInspections',
+  'repairs',
+  'pavilionRequests',
+  'fireReliefRequests',
+  'notifications',
+];
+
+function mergeRecordArrays<T extends { id: string; createdAt?: string; updatedAt?: string }>(
+  primary: T[],
+  secondary: T[],
+  deletedIds: string[] = []
+): T[] {
+  const deletedSet = new Set(deletedIds);
+  const map = new Map<string, T>();
+  for (const item of primary) {
+    if (item && item.id && !deletedSet.has(item.id)) {
+      map.set(item.id, item);
+    }
+  }
+  for (const item of secondary) {
+    if (!item || !item.id || deletedSet.has(item.id)) continue;
+    const prev = map.get(item.id);
+    if (!prev) {
+      map.set(item.id, item);
+    } else {
+      const prevTime = Date.parse(String(prev.updatedAt || prev.createdAt || '')) || 0;
+      const nextTime = Date.parse(String(item.updatedAt || item.createdAt || '')) || 0;
+      map.set(item.id, nextTime > prevTime ? { ...prev, ...item } : prev);
+    }
+  }
+  return Array.from(map.values());
+}
+
+async function postJsonSafe(url: string, payload: unknown): Promise<Response | null> {
+  try {
+    return await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    return null;
+  }
+}
+
 function normalizeTimestamp(val: unknown): string {
   if (!val) return new Date().toISOString();
   if (val instanceof Timestamp) return val.toDate().toISOString();
@@ -199,6 +254,8 @@ export interface EOfficeContextValue extends CachedState {
   saveStaffMember: (member: StaffMember, isNew: boolean) => Promise<void>;
   deleteStaffMember: (staffId: string) => Promise<void>;
   updateAppSettings: (next: AppSettings) => Promise<void>;
+  exportBackupJson: () => Promise<void>;
+  importBackupJson: (jsonText: string) => Promise<{ ok: boolean; restoredCount: number; error?: string }>;
   openPrintPreview: (title: string, fileName: string, htmlContent: string) => void;
   canApproveTier1: boolean;
   canApproveTier2: boolean;
@@ -238,6 +295,8 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const prevNotifCountRef = useRef<number>(cache.notifications.length);
   const seededCloudRef = useRef(false);
+  const deletedIdsRef = useRef<Record<string, string[]>>({});
+  const cloudSyncTimerRef = useRef<number | null>(null);
 
   const updateCache = useCallback((updater: (prev: CachedState) => CachedState) => {
     setCache((prev) => {
@@ -246,6 +305,65 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return next;
     });
   }, []);
+
+  // Hydrate persistent state from server volume (/app/data) on startup
+  useEffect(() => {
+    let cancelled = false;
+    const hydrateFromServer = async () => {
+      try {
+        const res = await fetch('/api/storage/state');
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          ok?: boolean;
+          store?: Partial<CachedState> & { deletedIds?: Record<string, string[]> };
+        };
+        if (!data.ok || !data.store || cancelled) return;
+
+        const serverStore = data.store;
+        if (serverStore.deletedIds && typeof serverStore.deletedIds === 'object') {
+          deletedIdsRef.current = serverStore.deletedIds;
+        }
+
+        let mergedForSync: CachedState | null = null;
+        updateCache((prev) => {
+          const next: CachedState = { ...prev };
+          for (const key of PERSISTED_ARRAY_KEYS) {
+            const serverArr = Array.isArray(serverStore[key]) ? (serverStore[key] as Array<{ id: string }>) : [];
+            const prevArr = Array.isArray(prev[key]) ? (prev[key] as Array<{ id: string }>) : [];
+            if (key === 'staff') {
+              const delStaff = serverStore.deletedIds?.staff || [];
+              next.staff =
+                serverArr.length > 0
+                  ? mergeRecordArrays(serverArr as StaffMember[], prevArr as StaffMember[], delStaff)
+                  : prev.staff;
+            } else {
+              (next[key] as Array<{ id: string }>) = mergeRecordArrays(
+                serverArr,
+                prevArr,
+                []
+              );
+            }
+          }
+          if (serverStore.settings && typeof serverStore.settings === 'object') {
+            next.settings = { ...DEFAULT_APP_SETTINGS, ...serverStore.settings };
+          }
+          mergedForSync = next;
+          return next;
+        });
+
+        if (mergedForSync) {
+          void postJsonSafe('/api/storage/sync', { state: mergedForSync, mode: 'merge' });
+        }
+      } catch {
+        // Offline or static-only mode; localStorage & Firestore remain active
+      }
+    };
+
+    void hydrateFromServer();
+    return () => {
+      cancelled = true;
+    };
+  }, [updateCache]);
 
   const setSoundEnabled = useCallback((enabled: boolean) => {
     setSoundEnabledState(enabled);
@@ -447,6 +565,15 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       )
     );
 
+    const scheduleMirrorToVolume = (nextState: CachedState) => {
+      if (cloudSyncTimerRef.current) {
+        window.clearTimeout(cloudSyncTimerRef.current);
+      }
+      cloudSyncTimerRef.current = window.setTimeout(() => {
+        void postJsonSafe('/api/storage/sync', { state: nextState, mode: 'merge' });
+      }, 600);
+    };
+
     const subscribeCol = <K extends keyof CachedState>(
       colName: string,
       stateKey: K
@@ -455,7 +582,7 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         onSnapshot(
           query(collection(db, colName), orgWhere),
           (snap) => {
-            const items = snap.docs.map((docSnap) => {
+            const cloudItems = snap.docs.map((docSnap) => {
               const d = docSnap.data();
               return {
                 ...d,
@@ -464,7 +591,24 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 ...(d.updatedAt ? { updatedAt: normalizeTimestamp(d.updatedAt) } : {}),
               };
             });
-            updateCache((prev) => ({ ...prev, [stateKey]: items }));
+            const deletedIds = deletedIdsRef.current[colName] || [];
+            updateCache((prev) => {
+              const localArr = Array.isArray(prev[stateKey])
+                ? (prev[stateKey] as unknown as Array<{ id: string; createdBy?: string }>)
+                : [];
+              const cloudIds = new Set(cloudItems.map((i) => i.id));
+              const unsyncedLocal = localArr.filter(
+                (item) =>
+                  item &&
+                  item.id &&
+                  !cloudIds.has(item.id) &&
+                  !deletedIds.includes(item.id) &&
+                  item.createdBy === 'local'
+              );
+              const nextState = { ...prev, [stateKey]: [...cloudItems, ...unsyncedLocal] };
+              scheduleMirrorToVolume(nextState);
+              return nextState;
+            });
           },
           (err) => handleFirestoreError(err, OperationType.LIST, colName)
         )
@@ -685,6 +829,12 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
     }
 
+    // Persist immediately to server persistent volume (/app/data)
+    void postJsonSafe('/api/storage/upsert', {
+      collectionName,
+      record: localRecord,
+    });
+
     if (isCloudSynced && firebaseUser) {
       try {
         const ref = doc(db, collectionName, record.id);
@@ -715,12 +865,21 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const removeRecord = async (collectionName: string, id: string) => {
     const stateKey = mapStateKey(collectionName);
+    deletedIdsRef.current[collectionName] = Array.from(
+      new Set([...(deletedIdsRef.current[collectionName] || []), id])
+    );
+
     if (stateKey) {
       updateCache((prev) => {
         const list = prev[stateKey] as unknown as Array<{ id: string }>;
         return { ...prev, [stateKey]: list.filter((i) => i.id !== id) };
       });
     }
+
+    void postJsonSafe('/api/storage/upsert', {
+      collectionName,
+      deleteId: id,
+    });
 
     if (isCloudSynced) {
       try {
@@ -747,6 +906,10 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           ? prev.staff.map((s) => (s.id === member.id ? nextMember : s))
           : [...prev.staff, nextMember],
       };
+    });
+
+    void postJsonSafe('/api/storage/upsert', {
+      staffMember: nextMember,
     });
 
     if (isCloudSynced && firebaseUser) {
@@ -790,10 +953,18 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteStaffMember = async (staffId: string) => {
+    deletedIdsRef.current.staff = Array.from(
+      new Set([...(deletedIdsRef.current.staff || []), staffId])
+    );
     updateCache((prev) => ({
       ...prev,
       staff: prev.staff.filter((s) => s.id !== staffId),
     }));
+
+    void postJsonSafe('/api/storage/upsert', {
+      deleteStaffId: staffId,
+    });
+
     if (isCloudSynced) {
       try {
         await deleteDoc(doc(db, 'staff_directory', staffId));
@@ -812,6 +983,11 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updatedAt: new Date().toISOString(),
     };
     updateCache((prev) => ({ ...prev, settings: updated }));
+
+    void postJsonSafe('/api/storage/upsert', {
+      settings: updated,
+    });
+
     if (isCloudSynced && firebaseUser) {
       try {
         await setDoc(doc(db, 'app_settings', updated.id), {
@@ -822,6 +998,68 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } catch (err) {
         handleFirestoreError(err, OperationType.UPDATE, `app_settings/${updated.id}`);
       }
+    }
+  };
+
+  const exportBackupJson = async () => {
+    const dateSlug = new Date().toISOString().slice(0, 10);
+    const payload = {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      ...cache,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `eoffice-backup-${dateSlug}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const importBackupJson = async (
+    jsonText: string
+  ): Promise<{ ok: boolean; restoredCount: number; error?: string }> => {
+    try {
+      const parsed = JSON.parse(jsonText) as Partial<CachedState>;
+      if (!parsed || typeof parsed !== 'object') {
+        return { ok: false, restoredCount: 0, error: 'ไฟล์สำรองข้อมูลไม่ถูกต้อง' };
+      }
+
+      let restoredCount = 0;
+      let nextSnapshot: CachedState | null = null;
+      updateCache((prev) => {
+        const next: CachedState = { ...prev };
+        for (const key of PERSISTED_ARRAY_KEYS) {
+          const incomingArr = Array.isArray(parsed[key]) ? (parsed[key] as Array<{ id: string }>) : [];
+          if (incomingArr.length > 0) {
+            restoredCount += incomingArr.length;
+            const prevArr = Array.isArray(prev[key]) ? (prev[key] as Array<{ id: string }>) : [];
+            (next[key] as Array<{ id: string }>) = mergeRecordArrays(prevArr, incomingArr, []);
+          }
+        }
+        if (parsed.settings && typeof parsed.settings === 'object') {
+          next.settings = { ...DEFAULT_APP_SETTINGS, ...parsed.settings };
+        }
+        nextSnapshot = next;
+        return next;
+      });
+
+      if (nextSnapshot) {
+        await postJsonSafe('/api/storage/restore', nextSnapshot);
+      }
+
+      return { ok: true, restoredCount };
+    } catch (err) {
+      return {
+        ok: false,
+        restoredCount: 0,
+        error: err instanceof Error ? err.message : 'ไม่สามารถอ่านไฟล์ JSON ได้',
+      };
     }
   };
 
@@ -888,6 +1126,8 @@ export const EOfficeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         saveStaffMember,
         deleteStaffMember,
         updateAppSettings,
+        exportBackupJson,
+        importBackupJson,
         openPrintPreview,
         canApproveTier1,
         canApproveTier2,
